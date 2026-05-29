@@ -2,312 +2,494 @@
 
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { signOut } from "firebase/auth";
-import { auth } from "../lib/firebase";
+import { useState, useEffect } from "react";
 
 import {
-Home,
-Users,
-Calendar,
-Upload,
-FileCheck,
-FileText,
-BarChart3,
-PieChart,
-ChevronDown,
-ChevronRight,
-LogOut
+  signOut,
+  onAuthStateChanged
+} from "firebase/auth";
+
+import {
+  auth,
+  db
+} from "../lib/firebase";
+
+import {
+  doc,
+  getDoc
+} from "firebase/firestore";
+
+import {
+  Home,
+  Users,
+  Calendar,
+  Upload,
+  FileCheck,
+  FileText,
+  BarChart3,
+  PieChart,
+  ChevronDown,
+  ChevronRight,
+  LogOut,
+  UserCircle2
 } from "lucide-react";
 
 export default function GerenteLayout({ children }) {
 
-const router = useRouter();
+  const router = useRouter();
 
-const [gestionOpen,setGestionOpen] = useState(false);
-const [reportesOpen,setReportesOpen] = useState(false);
+  const [gestionOpen, setGestionOpen] = useState(false);
 
-const cerrarSesion = async ()=>{
-await signOut(auth);
-router.push("/login");
-};
+  const [reportesOpen, setReportesOpen] = useState(false);
 
-return (
+  const [nombreUsuario, setNombreUsuario] =
+    useState("Cargando...");
 
-<div className="layout">
+  // 🔥 CARGAR NOMBRE
+  useEffect(() => {
 
-{/* SIDEBAR */}
+    const unsubscribe =
+      onAuthStateChanged(auth, async (user) => {
 
-<aside className="sidebar">
+        if(user){
 
-<div className="sidebarTop">
+          try{
 
-<div className="logoArea">
+            const docRef =
+              doc(db, "usuarios", user.uid);
 
-<Image
-src="/logo-invecem-gerente.png"
-width={120}
-height={60}
-alt="logo"
-/>
+            const snap =
+              await getDoc(docRef);
 
-<h2 className="siscom">
-<span className="sis">Sis</span><span className="com">COM</span>
-</h2>
+            if(snap.exists()){
 
-</div>
+              const data = snap.data();
 
-<nav>
+              setNombreUsuario(
+                `${data.nombres || ""} ${data.apellidos || ""}`
+              );
 
-<a
-className="menuItem"
-onClick={()=>router.push("/gerente")}
->
+            }
 
-<Home size={18}/>
-Panel Principal
+          }catch(error){
 
-</a>
+            console.log(error);
 
-{/* GESTION HUMANA */}
+          }
 
-<div
-className="menuItem"
-onClick={()=>setGestionOpen(!gestionOpen)}
->
+        }
 
-<Users size={18}/>
-Gestión Humana
-{gestionOpen ? <ChevronDown size={16}/> : <ChevronRight size={16}/>}
+      });
 
-</div>
+    return () => unsubscribe();
 
-{gestionOpen &&(
+  }, []);
 
-<div className="submenu">
+  // 🔥 CERRAR SESIÓN
+  const cerrarSesion = async () => {
 
-<a onClick={()=>router.push("/gerente/cargar-nomina")}>
-<Upload size={16}/>
-Cargar Nómina
-</a>
+    await signOut(auth);
 
-<a onClick={()=>router.push("/gerente/cargar-nomina/nomina-final")}>
-<FileCheck size={16}/>
-Ver Nómina Final
-</a>
+    router.push("/login");
 
-</div>
+  };
 
-)}
+  return (
 
-{/* REPORTES */}
+    <div className="layout">
 
-<div
-className="menuItem"
-onClick={()=>setReportesOpen(!reportesOpen)}
->
+      {/* SIDEBAR */}
+      <aside className="sidebar">
 
-<Calendar size={18}/>
-Reportes
-{reportesOpen ? <ChevronDown size={16}/> : <ChevronRight size={16}/>}
+        <div className="sidebarTop">
 
-</div>
+          {/* LOGO */}
+          <div className="logoArea">
 
-{reportesOpen &&(
+            <Image
+              src="/logo-invecem-gerente.png"
+              width={120}
+              height={60}
+              alt="logo"
+            />
 
-<div className="submenu">
+            <h2 className="siscom">
+              <span className="sis">Sis</span>
+              <span className="com">COM</span>
+            </h2>
 
-<a>
-<FileText size={16}/>
-Reporte Diario
-</a>
+          </div>
 
-<a>
-<BarChart3 size={16}/>
-Reporte Semanal
-</a>
+          {/* NAV */}
+          <nav>
 
-<a>
-<PieChart size={16}/>
-Reporte Mensual
-</a>
+            {/* PANEL */}
+            <a
+              className="menuItem"
+              onClick={() => router.push("/gerente")}
+            >
 
-</div>
+              <div className="menuLeft">
 
-)}
+                <Home size={20}/>
+                <span>Panel Principal</span>
 
-</nav>
+              </div>
 
-</div>
+            </a>
 
-{/* PARTE INFERIOR */}
+            {/* PERFIL */}
+            <a
+              className="menuItem"
+              onClick={() =>
+                router.push("/gerente/perfil")
+              }
+            >
 
-<div className="sidebarBottom">
+              <div className="menuLeft">
 
-<div className="perfil">
+                <UserCircle2 size={20}/>
+                <span>Mi Perfil</span>
 
-<Image
-src="/perfil-gerente.png"
-width={42}
-height={42}
-alt="perfil"
-/>
+              </div>
 
-<div>
+            </a>
 
-<p className="nombre">Marcos Herrera</p>
-<span className="cargo">GERENTE</span>
+            {/* GESTIÓN */}
+            <div
+              className="menuItem"
+              onClick={() =>
+                setGestionOpen(!gestionOpen)
+              }
+            >
 
-</div>
-
-</div>
-
-<button
-className="logout"
-onClick={cerrarSesion}
->
-
-<LogOut size={18}/>
-Cerrar Sesión
-
-</button>
-
-</div>
-
-</aside>
-
-{/* CONTENIDO */}
-
-<main className="main">
-
-{children}
-
-</main>
-
-<style jsx>{`
-
-.layout{
-display:flex;
-height:100vh;
-background:url('/background.png');
-background-size:cover;
-font-family:Arial;
-}
-
-.sidebar{
-width:260px;
-background:white;
-padding:25px;
-display:flex;
-flex-direction:column;
-justify-content:space-between;
-box-shadow:2px 0 10px rgba(0,0,0,0.1);
-overflow-y:auto;
-}
-
-.sidebarTop{
-display:flex;
-flex-direction:column;
-}
-
-.logoArea{
-display:flex;
-flex-direction:column;
-align-items:center;
-margin-bottom:20px;
-}
-
-.siscom{
-font-size:28px;
-font-weight:900;
-margin-top:4px;
-letter-spacing:0px;
-}
-
-.sis{color:black;}
-.com{color:#e53935;}
-
-nav{
-display:flex;
-flex-direction:column;
-gap:10px;
-}
-
-.menuItem{
-display:flex;
-align-items:center;
-gap:12px;
-padding:12px;
-border-radius:8px;
-cursor:pointer;
-font-size:15px;
-font-weight:500;
-}
-
-.menuItem:hover{
-background:#f4f4f4;
-}
-
-.submenu{
-margin-left:30px;
-display:flex;
-flex-direction:column;
-gap:8px;
-}
-
-.submenu a{
-display:flex;
-align-items:center;
-gap:8px;
-font-size:14px;
-cursor:pointer;
-}
-
-.sidebarBottom{
-margin-top:20px;
-}
-
-.perfil{
-display:flex;
-align-items:center;
-gap:10px;
-}
-
-.nombre{
-font-size:14px;
-font-weight:600;
-}
-
-.cargo{
-font-size:12px;
-color:#777;
-}
-
-.logout{
-margin-top:12px;
-border:none;
-background:#2b2b2b;
-color:white;
-padding:10px;
-border-radius:8px;
-display:flex;
-align-items:center;
-gap:8px;
-cursor:pointer;
-font-size:14px;
-font-weight:500;
-}
-
-.main{
-flex:1;
-padding:30px;
-overflow:auto;
-}
-
-`}</style>
-
-</div>
-
-);
+              <div className="menuLeft">
+
+                <Users size={20}/>
+                <span>Gestión Humana</span>
+
+              </div>
+
+              {
+                gestionOpen
+                ? <ChevronDown size={18}/>
+                : <ChevronRight size={18}/>
+              }
+
+            </div>
+
+            {gestionOpen && (
+
+              <div className="submenu">
+
+                <a
+                  onClick={() =>
+                    router.push("/gerente/cargar-nomina")
+                  }
+                >
+
+                  <Upload size={17}/>
+                  <span>Cargar Nómina</span>
+
+                </a>
+
+                <a
+                  onClick={() =>
+                    router.push(
+                      "/gerente/cargar-nomina/nomina-final"
+                    )
+                  }
+                >
+
+                  <FileCheck size={17}/>
+                  <span>Ver Nómina Final</span>
+
+                </a>
+
+              </div>
+
+            )}
+
+            {/* REPORTES */}
+            <div
+              className="menuItem"
+              onClick={() =>
+                setReportesOpen(!reportesOpen)
+              }
+            >
+
+              <div className="menuLeft">
+
+                <Calendar size={20}/>
+                <span>Reportes</span>
+
+              </div>
+
+              {
+                reportesOpen
+                ? <ChevronDown size={18}/>
+                : <ChevronRight size={18}/>
+              }
+
+            </div>
+
+            {reportesOpen && (
+
+              <div className="submenu">
+
+                <a>
+
+                  <FileText size={17}/>
+                  <span>Reporte Diario</span>
+
+                </a>
+
+                <a>
+
+                  <BarChart3 size={17}/>
+                  <span>Reporte Semanal</span>
+
+                </a>
+
+                <a>
+
+                  <PieChart size={17}/>
+                  <span>Reporte Mensual</span>
+
+                </a>
+
+              </div>
+
+            )}
+
+          </nav>
+
+        </div>
+
+        {/* ABAJO */}
+        <div className="sidebarBottom">
+
+          <div className="perfil">
+
+            <Image
+              src="/perfil-gerente.png"
+              width={44}
+              height={44}
+              alt="perfil"
+            />
+
+            <div className="perfilInfo">
+
+              <p className="nombre">
+                {nombreUsuario}
+              </p>
+
+              <span className="cargo">
+                GERENTE
+              </span>
+
+            </div>
+
+          </div>
+
+          <button
+            className="logout"
+            onClick={cerrarSesion}
+          >
+
+            <LogOut size={18}/>
+            <span>Cerrar Sesión</span>
+
+          </button>
+
+        </div>
+
+      </aside>
+
+      {/* MAIN */}
+      <main className="main">
+
+        {children}
+
+      </main>
+
+      <style jsx>{`
+
+        .layout{
+          display:flex;
+          height:100vh;
+          background:url('/background.png');
+          background-size:cover;
+          font-family:Arial;
+        }
+
+        /* SIDEBAR */
+        .sidebar{
+          width:270px;
+          background:white;
+          padding:25px 20px;
+          display:flex;
+          flex-direction:column;
+          justify-content:space-between;
+          box-shadow:2px 0 10px rgba(0,0,0,0.1);
+          overflow-y:auto;
+        }
+
+        .sidebarTop{
+          display:flex;
+          flex-direction:column;
+        }
+
+        /* LOGO */
+        .logoArea{
+          display:flex;
+          flex-direction:column;
+          align-items:center;
+          margin-bottom:25px;
+        }
+
+        .siscom{
+          font-size:30px;
+          font-weight:900;
+          margin-top:6px;
+        }
+
+        .sis{
+          color:black;
+        }
+
+        .com{
+          color:#e53935;
+        }
+
+        /* NAV */
+        nav{
+          display:flex;
+          flex-direction:column;
+          gap:8px;
+        }
+
+        .menuItem{
+          display:flex;
+          align-items:center;
+          justify-content:space-between;
+          padding:13px 14px;
+          border-radius:10px;
+          cursor:pointer;
+          transition:.2s;
+        }
+
+        .menuItem:hover{
+          background:#f5f5f5;
+        }
+
+        .menuLeft{
+          display:flex;
+          align-items:center;
+          gap:14px;
+        }
+
+        .menuLeft span{
+          font-size:16px;
+          font-weight:600;
+          color:#111;
+          text-align:left;
+        }
+
+        /* SUBMENU */
+        .submenu{
+          margin-left:34px;
+          display:flex;
+          flex-direction:column;
+          gap:10px;
+          margin-top:4px;
+          margin-bottom:4px;
+        }
+
+        .submenu a{
+          display:flex;
+          align-items:center;
+          gap:10px;
+          cursor:pointer;
+          font-size:14px;
+          color:#555;
+          font-weight:500;
+          text-align:left;
+        }
+
+        .submenu a:hover{
+          color:#e53935;
+        }
+
+        /* PERFIL */
+        .sidebarBottom{
+          margin-top:20px;
+          border-top:1px solid #eee;
+          padding-top:16px;
+        }
+
+        .perfil{
+          display:flex;
+          align-items:center;
+          gap:10px;
+          margin-bottom:14px;
+        }
+
+        .perfilInfo{
+          display:flex;
+          flex-direction:column;
+          align-items:flex-start;
+        }
+
+        .nombre{
+          font-size:15px;
+          font-weight:700;
+          color:#111;
+          margin:0;
+          text-align:left;
+        }
+
+        .cargo{
+          font-size:12px;
+          color:#777;
+          font-weight:600;
+          margin-top:2px;
+          text-align:left;
+        }
+
+        /* BOTON */
+        .logout{
+          width:100%;
+          border:none;
+          background:#222;
+          color:white;
+          padding:13px;
+          border-radius:10px;
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          gap:8px;
+          cursor:pointer;
+          font-size:15px;
+          font-weight:600;
+          transition:.2s;
+        }
+
+        .logout:hover{
+          background:black;
+        }
+
+        /* MAIN */
+        .main{
+          flex:1;
+          padding:30px;
+          overflow:auto;
+        }
+
+      `}</style>
+
+    </div>
+
+  );
 
 }

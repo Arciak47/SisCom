@@ -21,23 +21,26 @@ import {
 
 import {
   Home,
-  Users,
-  UserPlus,
-  KeyRound,
+  ClipboardCheck,
+  FileText,
+  Clock3,
   ChevronDown,
   ChevronRight,
   LogOut,
-  UserCircle2
+  UserCircle2,
+  UtensilsCrossed
 } from "lucide-react";
 
-export default function AdminLayout({ children }) {
+export default function SupervisorLayout({
+  children
+}) {
 
   const router = useRouter();
 
-  const [usuariosOpen, setUsuariosOpen] =
+  const [menuOpen, setMenuOpen] =
     useState(false);
 
-  const [nombreAdmin, setNombreAdmin] =
+  const [nombreSupervisor, setNombreSupervisor] =
     useState("Cargando...");
 
   // 🔥 CARGAR NOMBRE
@@ -60,8 +63,20 @@ export default function AdminLayout({ children }) {
 
               const data = snap.data();
 
-              setNombreAdmin(
-                `${data.nombres || ""} ${data.apellidos || ""}`
+              // VALIDAR ROL
+              if(
+                data.rol?.toLowerCase()
+                !== "supervisor"
+              ){
+
+                router.push("/login");
+                return;
+
+              }
+
+              setNombreSupervisor(
+                `${data.nombres || ""}
+                ${data.apellidos || ""}`
               );
 
             }
@@ -71,6 +86,10 @@ export default function AdminLayout({ children }) {
             console.log(error);
 
           }
+
+        }else{
+
+          router.push("/login");
 
         }
 
@@ -129,7 +148,7 @@ export default function AdminLayout({ children }) {
             <a
               className="menuItem"
               onClick={() =>
-                router.push("/administrador")
+                router.push("/supervisor")
               }
             >
 
@@ -149,7 +168,7 @@ export default function AdminLayout({ children }) {
             <a
               className="menuItem"
               onClick={() =>
-                router.push("/administrador/perfil")
+                router.push("/supervisor/perfil")
               }
             >
 
@@ -165,60 +184,48 @@ export default function AdminLayout({ children }) {
 
             </a>
 
-            {/* GESTIÓN */}
+            {/* GESTION */}
             <div
               className="menuItem"
               onClick={() =>
-                setUsuariosOpen(!usuariosOpen)
+                setMenuOpen(!menuOpen)
               }
             >
 
               <div className="menuLeft">
 
-                <Users size={20}/>
+                <ClipboardCheck size={20}/>
 
                 <span>
-                  Gestión de Usuarios
+                  Gestión Comedor
                 </span>
 
               </div>
 
               {
-                usuariosOpen
+                menuOpen
                 ? <ChevronDown size={18}/>
                 : <ChevronRight size={18}/>
               }
 
             </div>
 
-            {usuariosOpen && (
+            {menuOpen && (
 
               <div className="submenu">
 
                 <a
                   onClick={() =>
-                    router.push("/administrador/crear")
+                    router.push(
+                      "/supervisor/asistencia"
+                    )
                   }
                 >
 
-                  <UserPlus size={17}/>
+                  <ClipboardCheck size={17}/>
 
                   <span>
-                    Crear Usuario
-                  </span>
-
-                </a>
-
-                <a
-                  onClick={() =>
-                    router.push("/administrador/usuarios")
-                  }
-                >
-
-                  <Users size={17}/>
-
-                  <span>
-                    Usuarios del Sistema
+                    Registrar Asistencia
                   </span>
 
                 </a>
@@ -226,19 +233,36 @@ export default function AdminLayout({ children }) {
                 <a
                   onClick={() =>
                     router.push(
-                      "/administrador/cambiar-clave"
+                      "/supervisor/comidas"
                     )
                   }
                 >
 
-                  <KeyRound size={17}/>
+                  <UtensilsCrossed size={17}/>
 
                   <span>
-                    Cambiar Contraseñas
+                    Control de Comidas
                   </span>
 
                 </a>
 
+                <a
+                  onClick={() =>
+                    router.push(
+                      "/supervisor/reportes"
+                    )
+                  }
+                >
+
+                  <FileText size={17}/>
+
+                  <span>
+                    Reportes
+                  </span>
+
+                </a>
+
+              
               </div>
 
             )}
@@ -263,12 +287,12 @@ export default function AdminLayout({ children }) {
 
               <p className="nombre">
 
-                {nombreAdmin}
+                {nombreSupervisor}
 
               </p>
 
               <span className="cargo">
-                ADMIN
+                SUPERVISOR
               </span>
 
             </div>

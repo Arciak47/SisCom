@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+
 import { useRouter } from "next/navigation";
 
 import { db } from "../../lib/firebase";
@@ -9,7 +10,8 @@ import {
   collection,
   getDocs,
   deleteDoc,
-  doc
+  doc,
+  updateDoc
 } from "firebase/firestore";
 
 import {
@@ -17,10 +19,11 @@ import {
   Search,
   Shield,
   Mail,
-  Eye,
-  EyeOff,
   Trash2,
-  KeyRound
+  KeyRound,
+  Eye,
+  User2,
+  ArrowLeft
 } from "lucide-react";
 
 export default function UsuariosSistema() {
@@ -28,13 +31,17 @@ export default function UsuariosSistema() {
   const router = useRouter();
 
   const [usuarios, setUsuarios] = useState([]);
-  const [usuariosFiltrados, setUsuariosFiltrados] = useState([]);
+
+  const [usuariosFiltrados, setUsuariosFiltrados] =
+    useState([]);
 
   const [loading, setLoading] = useState(true);
 
   const [busqueda, setBusqueda] = useState("");
 
-  const [mostrarClaves, setMostrarClaves] = useState({});
+  // 🔥 MODAL
+  const [usuarioSeleccionado, setUsuarioSeleccionado] =
+    useState(null);
 
   // 🔥 CARGAR USUARIOS
   useEffect(() => {
@@ -43,9 +50,10 @@ export default function UsuariosSistema() {
 
       try {
 
-        const querySnapshot = await getDocs(
-          collection(db, "usuarios")
-        );
+        const querySnapshot =
+          await getDocs(
+            collection(db, "usuarios")
+          );
 
         const lista = [];
 
@@ -59,12 +67,16 @@ export default function UsuariosSistema() {
         });
 
         setUsuarios(lista);
+
         setUsuariosFiltrados(lista);
 
       } catch (error) {
 
         console.error(error);
-        alert("❌ Error al cargar usuarios");
+
+        alert(
+          "❌ Error al cargar usuarios"
+        );
 
       }
 
@@ -79,57 +91,110 @@ export default function UsuariosSistema() {
   // 🔥 BUSCAR
   useEffect(() => {
 
-    const filtrados = usuarios.filter((user) =>
+    const filtrados =
+      usuarios.filter((user) =>
 
-      `${user.nombres || ""}
-       ${user.apellidos || ""}
-       ${user.correo || ""}
-       ${user.rol || ""}`
-        .toLowerCase()
-        .includes(busqueda.toLowerCase())
+        `${user.nombres || ""}
+         ${user.apellidos || ""}
+         ${user.correo || ""}
+         ${user.rol || ""}`
+          .toLowerCase()
+          .includes(
+            busqueda.toLowerCase()
+          )
 
-    );
+      );
 
     setUsuariosFiltrados(filtrados);
 
   }, [busqueda, usuarios]);
 
-  // 🔥 MOSTRAR / OCULTAR CONTRASEÑA
-  function togglePassword(id) {
+  // 🔥 CAMBIAR STATUS
+  async function cambiarStatus(id, statusActual){
 
-    setMostrarClaves(prev => ({
-      ...prev,
-      [id]: !prev[id]
-    }));
+    try{
+
+      const nuevoStatus =
+        statusActual === "activo"
+          ? "inactivo"
+          : "activo";
+
+      await updateDoc(
+        doc(db, "usuarios", id),
+        {
+          status: nuevoStatus
+        }
+      );
+
+      const actualizados =
+        usuarios.map((u)=>{
+
+          if(u.id === id){
+
+            return {
+              ...u,
+              status: nuevoStatus
+            };
+
+          }
+
+          return u;
+
+        });
+
+      setUsuarios(actualizados);
+
+      setUsuariosFiltrados(actualizados);
+
+    }catch(error){
+
+      console.error(error);
+
+      alert(
+        "❌ Error al actualizar estado"
+      );
+
+    }
 
   }
 
-  // 🔥 ELIMINAR USUARIO
+  // 🔥 ELIMINAR
   async function eliminarUsuario(id, nombre) {
 
     const confirmar = confirm(
-      `¿Seguro que deseas eliminar el usuario ${nombre}?\n\nEsta acción no se puede deshacer.`
+      `¿Seguro que deseas eliminar el usuario ${nombre}?`
     );
 
     if (!confirmar) return;
 
     try {
 
-      await deleteDoc(doc(db, "usuarios", id));
-
-      const nuevosUsuarios = usuarios.filter(
-        (u) => u.id !== id
+      await deleteDoc(
+        doc(db, "usuarios", id)
       );
 
-      setUsuarios(nuevosUsuarios);
-      setUsuariosFiltrados(nuevosUsuarios);
+      const nuevosUsuarios =
+        usuarios.filter(
+          (u) => u.id !== id
+        );
 
-      alert("✅ Usuario eliminado correctamente");
+      setUsuarios(nuevosUsuarios);
+
+      setUsuariosFiltrados(
+        nuevosUsuarios
+      );
+
+      alert(
+        "✅ Usuario eliminado correctamente"
+      );
 
     } catch (error) {
 
       console.error(error);
-      alert("❌ Error al eliminar usuario");
+
+      alert(
+        "❌ Error al eliminar usuario"
+      );
 
     }
 
@@ -139,21 +204,30 @@ export default function UsuariosSistema() {
 
     <div className="main">
 
-      {/* 🔥 TITULO */}
+      {/* TITULO */}
       <div className="panelTitle">
 
-        <h1>Usuarios del Sistema</h1>
+        <h1>
+          Usuarios del Sistema
+        </h1>
 
       </div>
 
-      {/* 🔥 DASHBOARD */}
+      {/* DASHBOARD */}
       <div className="dashboard">
 
         <div className="cardDash">
 
           <div>
-            <span>Total Usuarios</span>
-            <strong>{usuarios.length}</strong>
+
+            <span>
+              Total Usuarios
+            </span>
+
+            <strong>
+              {usuarios.length}
+            </strong>
+
           </div>
 
           <Users size={28}/>
@@ -162,7 +236,7 @@ export default function UsuariosSistema() {
 
       </div>
 
-      {/* 🔥 BUSCADOR */}
+      {/* BUSCADOR */}
       <div className="searchBox">
 
         <Search size={18}/>
@@ -171,12 +245,14 @@ export default function UsuariosSistema() {
           type="text"
           placeholder="Buscar usuario..."
           value={busqueda}
-          onChange={(e)=>setBusqueda(e.target.value)}
+          onChange={(e)=>
+            setBusqueda(e.target.value)
+          }
         />
 
       </div>
 
-      {/* 🔥 TABLA */}
+      {/* TABLA */}
       <div className="tableCard">
 
         {loading ? (
@@ -206,7 +282,7 @@ export default function UsuariosSistema() {
                   <th>Apellidos</th>
                   <th>Correo</th>
                   <th>Rol</th>
-                  <th>Contraseña</th>
+                  <th>Status</th>
                   <th>Acciones</th>
 
                 </tr>
@@ -215,11 +291,14 @@ export default function UsuariosSistema() {
 
               <tbody>
 
-                {usuariosFiltrados.map((user, index)=>(
+                {usuariosFiltrados.map(
+                  (user, index)=>(
 
                   <tr key={user.id}>
 
-                    <td>{index + 1}</td>
+                    <td>
+                      {index + 1}
+                    </td>
 
                     <td>
                       {user.nombres || "-"}
@@ -253,38 +332,54 @@ export default function UsuariosSistema() {
 
                     </td>
 
-                    {/* 🔥 CONTRASEÑA */}
+                    {/* STATUS */}
                     <td>
 
-                      <div className="passwordBox">
+                      <button
+                        className={
+                          user.status === "activo"
+                          ? "statusMini activo"
+                          : "statusMini inactivo"
+                        }
+                        onClick={() =>
+                          cambiarStatus(
+                            user.id,
+                            user.status
+                          )
+                        }
+                      >
 
-                        <span>
+                        <span className="statusDot"></span>
 
-                          {mostrarClaves[user.id]
-                            ? user.clave || "No disponible"
-                            : "••••••••"}
+                        {
+                          user.status === "activo"
+                          ? "Activo"
+                          : "Inactivo"
+                        }
 
-                        </span>
-
-                        <button
-                          onClick={() => togglePassword(user.id)}
-                        >
-
-                          {mostrarClaves[user.id]
-                            ? <EyeOff size={16}/>
-                            : <Eye size={16}/>}
-
-                        </button>
-
-                      </div>
+                      </button>
 
                     </td>
 
-                    {/* 🔥 ACCIONES */}
+                    {/* ACCIONES */}
                     <td>
 
                       <div className="acciones">
 
+                        {/* VER */}
+                        <button
+                          className="viewBtn"
+                          onClick={() =>
+                            setUsuarioSeleccionado(user)
+                          }
+                        >
+
+                          <Eye size={15}/>
+                          Ver
+
+                        </button>
+
+                        {/* CAMBIAR */}
                         <button
                           className="editBtn"
                           onClick={() =>
@@ -294,11 +389,12 @@ export default function UsuariosSistema() {
                           }
                         >
 
-                          <KeyRound size={16}/>
+                          <KeyRound size={15}/>
                           Cambiar
 
                         </button>
 
+                        {/* ELIMINAR */}
                         <button
                           className="deleteBtn"
                           onClick={() =>
@@ -309,8 +405,7 @@ export default function UsuariosSistema() {
                           }
                         >
 
-                          <Trash2 size={16}/>
-                          Eliminar
+                          <Trash2 size={14}/>
 
                         </button>
 
@@ -329,6 +424,161 @@ export default function UsuariosSistema() {
           </div>
 
         )}
+
+      </div>
+
+      {/* 🔥 MODAL VER USUARIO */}
+      {usuarioSeleccionado && (
+
+        <div className="modalOverlay">
+
+          <div className="modal">
+
+            <div className="modalHeader">
+
+              <div className="perfilCircle">
+
+                <User2 size={35}/>
+
+              </div>
+
+              <div>
+
+                <h2>
+                  Información Completa del Usuario
+                </h2>
+
+                <p>
+                  Datos registrados en el sistema
+                </p>
+
+              </div>
+
+            </div>
+
+            <div className="infoGrid">
+
+              {/* CREDENCIALES */}
+              <div className="infoCard">
+                <span>Correo Institucional</span>
+                <strong>
+                  {usuarioSeleccionado.correo || "-"}
+                </strong>
+              </div>
+
+              <div className="infoCard">
+                <span>Status</span>
+                <strong>
+                  {usuarioSeleccionado.status || "-"}
+                </strong>
+              </div>
+
+              <div className="infoCard">
+                <span>Rol del Sistema</span>
+                <strong>
+                  {usuarioSeleccionado.rol || "-"}
+                </strong>
+              </div>
+
+              {/* INFORMACIÓN PERSONAL */}
+              <div className="infoCard">
+                <span>Nombres</span>
+                <strong>
+                  {usuarioSeleccionado.nombres || "-"}
+                </strong>
+              </div>
+
+              <div className="infoCard">
+                <span>Apellidos</span>
+                <strong>
+                  {usuarioSeleccionado.apellidos || "-"}
+                </strong>
+              </div>
+
+              <div className="infoCard">
+                <span>Cédula de Identidad</span>
+                <strong>
+                  {usuarioSeleccionado.cedula || "-"}
+                </strong>
+              </div>
+
+              <div className="infoCard">
+                <span>Teléfono</span>
+                <strong>
+                  {usuarioSeleccionado.telefono || "-"}
+                </strong>
+              </div>
+
+              <div className="infoCard">
+                <span>Fecha de Nacimiento</span>
+                <strong>
+                  {usuarioSeleccionado.fechaNacimiento || "-"}
+                </strong>
+              </div>
+
+              {/* FICHA LABORAL */}
+              <div className="infoCard">
+                <span>N° de Ficha</span>
+                <strong>
+                  {usuarioSeleccionado.ficha || "-"}
+                </strong>
+              </div>
+
+              <div className="infoCard">
+                <span>Cargo</span>
+                <strong>
+                  {usuarioSeleccionado.cargo || "-"}
+                </strong>
+              </div>
+
+              <div className="infoCard">
+                <span>Departamento</span>
+                <strong>
+                  {usuarioSeleccionado.departamento || "-"}
+                </strong>
+              </div>
+
+              <div className="infoCard">
+                <span>Fecha de Ingreso</span>
+                <strong>
+                  {usuarioSeleccionado.fechaIngreso || "-"}
+                </strong>
+              </div>
+
+            </div>
+
+            {/* BOTON ABAJO */}
+            <div className="bottomActions">
+
+              <button
+                className="cerrarBtn"
+                onClick={() =>
+                  setUsuarioSeleccionado(null)
+                }
+              >
+                Cerrar
+              </button>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      )}
+
+      {/* BOTON VOLVER ABAJO */}
+      <div className="bottomBack">
+
+        <button
+          className="backBtn"
+          onClick={() => router.back()}
+        >
+
+          <ArrowLeft size={18}/>
+          Volver
+
+        </button>
 
       </div>
 
@@ -353,13 +603,11 @@ export default function UsuariosSistema() {
         }
 
         .dashboard{
-          display:grid;
-          grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
-          gap:15px;
           margin-bottom:25px;
         }
 
         .cardDash{
+          width:250px;
           background:white;
           padding:20px;
           border-radius:15px;
@@ -403,7 +651,7 @@ export default function UsuariosSistema() {
           background:white;
           padding:25px;
           border-radius:18px;
-          box-shadow:0 10px 30px rgba(0,0,0,0.15);
+          box-shadow:0 10px 30px rgba(0, 0, 0, 0.15);
         }
 
         .tableContainer{
@@ -426,8 +674,6 @@ export default function UsuariosSistema() {
         th{
           background:#2563eb;
           color:white;
-          position:sticky;
-          top:0;
         }
 
         tr:hover{
@@ -441,29 +687,64 @@ export default function UsuariosSistema() {
           gap:6px;
         }
 
-        .passwordBox{
+        .statusMini{
+          border:none;
+          padding:5px 10px;
+          border-radius:30px;
           display:flex;
           align-items:center;
-          justify-content:space-between;
-          gap:10px;
-          background:#f8fafc;
-          padding:8px 10px;
-          border-radius:8px;
+          gap:6px;
+          font-size:11px;
+          font-weight:700;
+          cursor:pointer;
+          transition:.2s;
         }
 
-        .passwordBox button{
-          border:none;
-          background:none;
-          cursor:pointer;
-          display:flex;
-          align-items:center;
-          color:#555;
+        .statusMini:hover{
+          transform:scale(1.05);
+        }
+
+        .statusDot{
+          width:8px;
+          height:8px;
+          border-radius:50%;
+          background:currentColor;
+        }
+
+        .activo{
+          background:#dcfce7;
+          color:#15803d;
+        }
+
+        .inactivo{
+          background:#fee2e2;
+          color:#dc2626;
         }
 
         .acciones{
           display:flex;
-          gap:8px;
+          gap:6px;
           flex-wrap:wrap;
+        }
+
+        .viewBtn{
+          display:flex;
+          align-items:center;
+          gap:5px;
+          background:#facc15;
+          color:#111827;
+          border:none;
+          padding:8px 11px;
+          border-radius:8px;
+          cursor:pointer;
+          font-size:12px;
+          font-weight:700;
+          transition:.2s;
+        }
+
+        .viewBtn:hover{
+          background:#eab308;
+          transform:scale(1.05);
         }
 
         .editBtn{
@@ -476,35 +757,157 @@ export default function UsuariosSistema() {
           padding:8px 10px;
           border-radius:8px;
           cursor:pointer;
-          font-size:13px;
+          font-size:12px;
+          font-weight:600;
           transition:.2s;
+        }
+
+        .editBtn:hover{
+          transform:scale(1.05);
         }
 
         .deleteBtn{
-          display:flex;
-          align-items:center;
-          gap:5px;
+          width:34px;
+          height:34px;
           background:#dc2626;
           color:white;
           border:none;
-          padding:8px 10px;
           border-radius:8px;
           cursor:pointer;
-          font-size:13px;
+          display:flex;
+          align-items:center;
+          justify-content:center;
           transition:.2s;
         }
 
-        .editBtn:hover,
         .deleteBtn:hover{
-          transform:scale(1.05);
-          box-shadow:0 5px 15px rgba(0,0,0,0.2);
+          transform:scale(1.08);
+          background:#b91c1c;
         }
 
         .loading{
           text-align:center;
           padding:30px;
           color:#666;
+        }
+
+        .modalOverlay{
+          position:fixed;
+          inset:0;
+          background:rgba(0,0,0,0.5);
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          z-index:999;
+          padding:20px;
+        }
+
+        .modal{
+          width:100%;
+          max-width:850px;
+          max-height:90vh;
+          overflow:auto;
+          background:white;
+          border-radius:20px;
+          padding:30px;
+          box-shadow:0 20px 40px rgba(0,0,0,0.2);
+        }
+
+        .modalHeader{
+          display:flex;
+          align-items:center;
+          gap:15px;
+          margin-bottom:25px;
+        }
+
+        .perfilCircle{
+          width:70px;
+          height:70px;
+          border-radius:50%;
+          background:#eef2ff;
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          color:#2563eb;
+        }
+
+        .modalHeader h2{
+          font-size:24px;
+          margin:0;
+        }
+
+        .modalHeader p{
+          color:#666;
+          margin-top:4px;
+        }
+
+        .infoGrid{
+          display:grid;
+          grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
+          gap:15px;
+        }
+
+        .infoCard{
+          background:#f8fafc;
+          padding:16px;
+          border-radius:12px;
+          border:1px solid #e5e7eb;
+        }
+
+        .infoCard span{
+          display:block;
+          font-size:12px;
+          color:#666;
+          margin-bottom:5px;
+        }
+
+        .infoCard strong{
           font-size:15px;
+          color:#111;
+          word-break:break-word;
+        }
+
+        .bottomActions{
+          margin-top:30px;
+        }
+
+        .cerrarBtn{
+          width:100%;
+          background:#111827;
+          color:white;
+          border:none;
+          padding:13px;
+          border-radius:12px;
+          cursor:pointer;
+          font-size:14px;
+          font-weight:600;
+        }
+
+        /* BOTON VOLVER ABAJO */
+        .bottomBack{
+          display:flex;
+          justify-content:center;
+          margin-top:30px;
+        }
+
+        .backBtn{
+          display:flex;
+          align-items:center;
+          gap:8px;
+          background:#111827;
+          color:white;
+          border:none;
+          padding:12px 18px;
+          border-radius:10px;
+          cursor:pointer;
+          font-size:14px;
+          font-weight:600;
+          transition:.2s;
+        }
+
+        .backBtn:hover{
+          transform:translateY(-2px);
+          background:#1f2937;
         }
 
       `}</style>

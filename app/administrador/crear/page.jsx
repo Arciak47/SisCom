@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+
 import { auth, db } from "../../lib/firebase";
 
 import {
@@ -17,7 +18,17 @@ import {
   ArrowLeft,
   Eye,
   EyeOff,
-  UserPlus
+  UserPlus,
+  ShieldCheck,
+  User,
+  Mail,
+  Lock,
+  Briefcase,
+  Phone,
+  IdCard,
+  CalendarDays,
+  Building2,
+  BadgeCheck
 } from "lucide-react";
 
 export default function CrearUsuario() {
@@ -25,18 +36,32 @@ export default function CrearUsuario() {
   const router = useRouter();
 
   const [form, setForm] = useState({
-    nombres: "",
-    apellidos: "",
+
     correo: "",
     clave: "",
     confirmarClave: "",
-    rol: ""
+
+    nombres: "",
+    apellidos: "",
+    cedula: "",
+    telefono: "",
+    fechaNacimiento: "",
+
+    ficha: "",
+    rol: "",
+    cargo: "",
+    departamento: "",
+    fechaIngreso: ""
+
   });
 
   const [loading, setLoading] = useState(false);
 
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showPassword, setShowPassword] =
+    useState(false);
+
+  const [showConfirmPassword, setShowConfirmPassword] =
+    useState(false);
 
   function handleChange(e){
 
@@ -63,44 +88,58 @@ export default function CrearUsuario() {
   // 🔥 VALIDAR CONTRASEÑA
   function validarClave(clave){
 
-    // mínimo 8 caracteres
-    // letras
-    // números
-    // símbolos
-
     const regex =
-      /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&._-])[A-Za-z\d@$!%*#?&._-]{8,}$/;
+      /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d@$!%*#?&._-]{6,}$/;
 
     return regex.test(clave);
 
   }
 
+  // 🔥 CREAR USUARIO
   async function crearUsuario(){
 
     if(
-      !form.nombres ||
-      !form.apellidos ||
+
       !form.correo ||
       !form.clave ||
       !form.confirmarClave ||
-      !form.rol
+
+      !form.nombres ||
+      !form.apellidos ||
+      !form.cedula ||
+      !form.telefono ||
+      !form.fechaNacimiento ||
+
+      !form.ficha ||
+      !form.rol ||
+      !form.cargo ||
+      !form.departamento ||
+      !form.fechaIngreso
+
     ){
+
       alert("⚠️ Completa todos los campos");
       return;
+
     }
 
     // 🔥 VALIDAR CONTRASEÑA
     if(!validarClave(form.clave)){
+
       alert(
-        "❌ La contraseña debe tener mínimo 8 caracteres, letras, números y símbolos"
+        "❌ La contraseña debe contener letras, números y mínimo 6 caracteres"
       );
+
       return;
+
     }
 
-    // 🔥 VALIDAR CONFIRMACIÓN
+    // 🔥 CONFIRMAR
     if(form.clave !== form.confirmarClave){
+
       alert("❌ Las contraseñas no coinciden");
       return;
+
     }
 
     try{
@@ -116,16 +155,34 @@ export default function CrearUsuario() {
 
       const user = userCredential.user;
 
-      // 🔥 GUARDAR EN FIRESTORE
+      // 🔥 GUARDAR FIRESTORE
       await setDoc(doc(db, "usuarios", user.uid), {
+
+        correo: form.correo.trim(),
+
+        clave: form.clave,
 
         nombres: capitalizar(form.nombres),
 
         apellidos: capitalizar(form.apellidos),
 
-        correo: form.correo.trim(),
+        cedula: form.cedula,
+
+        telefono: form.telefono,
+
+        fechaNacimiento: form.fechaNacimiento,
+
+        ficha: form.ficha,
 
         rol: form.rol,
+
+        cargo: capitalizar(form.cargo),
+
+        departamento: capitalizar(form.departamento),
+
+        fechaIngreso: form.fechaIngreso,
+
+        status: "activo",
 
         creado: new Date()
 
@@ -163,107 +220,130 @@ export default function CrearUsuario() {
 
     <div className="main">
 
-      {/* 🔥 TITULO */}
+      {/* 🔥 HEADER */}
+
       <div className="panelTitle">
-        <h1>Crear Usuario del Sistema</h1>
+
+        <h1>
+          Registrar Usuario
+        </h1>
+
       </div>
 
       {/* 🔥 CARD */}
+
       <div className="formCard">
 
-        {/* NOMBRES */}
-        <div className="inputGroup">
+        {/* 🔥 CREDENCIALES */}
 
-          <label>Nombres</label>
+        <div className="sectionTitle">
 
-          <input
-            type="text"
-            name="nombres"
-            placeholder="Ingrese los nombres"
-            value={form.nombres}
-            onChange={handleChange}
-          />
+          <ShieldCheck size={18}/>
+
+          <span>
+            Credenciales de Acceso
+          </span>
 
         </div>
 
-        {/* APELLIDOS */}
-        <div className="inputGroup">
+        <div className="grid">
 
-          <label>Apellidos</label>
+          {/* CORREO */}
 
-          <input
-            type="text"
-            name="apellidos"
-            placeholder="Ingrese los apellidos"
-            value={form.apellidos}
-            onChange={handleChange}
-          />
+          <div className="inputGroup">
 
-        </div>
+            <label>
+              Correo Institucional
+            </label>
 
-        {/* CORREO */}
-        <div className="inputGroup">
+            <div className="inputIcon">
 
-          <label>Correo Electrónico</label>
+              <Mail
+                size={18}
+                className="iconLeft"
+              />
 
-          <input
-            type="email"
-            name="correo"
-            placeholder="usuario@gmail.com"
-            value={form.correo}
-            onChange={handleChange}
-          />
+              <input
+                type="email"
+                name="correo"
+                placeholder="usuario@gmail.com"
+                value={form.correo}
+                onChange={handleChange}
+              />
 
-          <small>
-            El usuario debe ingresar un correo válido
-          </small>
-
-        </div>
-
-        {/* CONTRASEÑA */}
-        <div className="inputGroup">
-
-          <label>Contraseña</label>
-
-          <div className="passwordBox">
-
-            <input
-              type={showPassword ? "text" : "password"}
-              name="clave"
-              placeholder="Ingrese la contraseña"
-              value={form.clave}
-              onChange={handleChange}
-            />
-
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-            >
-              {showPassword
-                ? <EyeOff size={18}/>
-                : <Eye size={18}/>}
-            </button>
+            </div>
 
           </div>
 
-          <small>
-            Debe contener mínimo 8 caracteres,
-            letras, números y símbolos
-          </small>
+          {/* PASSWORD */}
+
+          <div className="inputGroup">
+
+            <label>
+              Contraseña
+            </label>
+
+            <div className="passwordBox">
+
+              <Lock
+                size={18}
+                className="iconLeft"
+              />
+
+              <input
+                type={
+                  showPassword
+                    ? "text"
+                    : "password"
+                }
+                name="clave"
+                placeholder="Ingrese contraseña"
+                value={form.clave}
+                onChange={handleChange}
+              />
+
+              <button
+                type="button"
+                onClick={() =>
+                  setShowPassword(!showPassword)
+                }
+              >
+
+                {showPassword
+                  ? <EyeOff size={18}/>
+                  : <Eye size={18}/>}
+
+              </button>
+
+            </div>
+
+          </div>
 
         </div>
 
         {/* CONFIRMAR */}
+
         <div className="inputGroup">
 
-          <label>Confirmar Contraseña</label>
+          <label>
+            Confirmar Contraseña
+          </label>
 
           <div className="passwordBox">
 
+            <Lock
+              size={18}
+              className="iconLeft"
+            />
+
             <input
-              type={showConfirmPassword ? "text" : "password"}
+              type={
+                showConfirmPassword
+                  ? "text"
+                  : "password"
+              }
               name="confirmarClave"
-              placeholder="Confirme la contraseña"
+              placeholder="Repita la contraseña"
               value={form.confirmarClave}
               onChange={handleChange}
             />
@@ -271,74 +351,360 @@ export default function CrearUsuario() {
             <button
               type="button"
               onClick={() =>
-                setShowConfirmPassword(!showConfirmPassword)
+                setShowConfirmPassword(
+                  !showConfirmPassword
+                )
               }
             >
+
               {showConfirmPassword
                 ? <EyeOff size={18}/>
                 : <Eye size={18}/>}
+
             </button>
 
           </div>
 
         </div>
 
-        {/* ROL */}
-        <div className="inputGroup">
+        {/* 🔥 REGLAS PASSWORD */}
 
-          <label>Seleccionar Rol</label>
+        <div className="passwordInfo">
 
-          <select
-            name="rol"
-            value={form.rol}
-            onChange={handleChange}
-          >
+          <strong>
+            La contraseña debe contener:
+          </strong>
 
-            <option value="">
-              Seleccionar Rol
-            </option>
-
-            <option value="gerente">
-              Gerente
-            </option>
-
-            <option value="supervisor">
-              Supervisor
-            </option>
-
-            <option value="recursos humanos">
-              Recursos Humanos
-            </option>
-
-          </select>
+          <ul>
+            <li>Mínimo 6 caracteres</li>
+            <li>Al menos una letra</li>
+            <li>Al menos un número</li>
+          </ul>
 
         </div>
 
-        {/* BOTON CREAR */}
-        <button
-          className="saveBtn"
-          onClick={crearUsuario}
-          disabled={loading}
-        >
+        {/* 🔥 INFORMACIÓN PERSONAL */}
 
-          <UserPlus size={18}/>
+        <div className="sectionTitle">
 
-          {loading
-            ? "Creando Usuario..."
-            : "Crear Usuario"}
+          <User size={18}/>
 
-        </button>
+          <span>
+            Información Personal
+          </span>
 
-        {/* VOLVER */}
-        <button
-          className="backBtn"
-          onClick={() => router.back()}
-        >
+        </div>
 
-          <ArrowLeft size={16}/>
-          Volver
+        <div className="grid">
 
-        </button>
+          {/* NOMBRES */}
+
+          <div className="inputGroup">
+
+            <label>
+              Nombres
+            </label>
+
+            <input
+              type="text"
+              name="nombres"
+              placeholder="Ingrese los nombres"
+              value={form.nombres}
+              onChange={handleChange}
+            />
+
+          </div>
+
+          {/* APELLIDOS */}
+
+          <div className="inputGroup">
+
+            <label>
+              Apellidos
+            </label>
+
+            <input
+              type="text"
+              name="apellidos"
+              placeholder="Ingrese los apellidos"
+              value={form.apellidos}
+              onChange={handleChange}
+            />
+
+          </div>
+
+          {/* CEDULA */}
+
+          <div className="inputGroup">
+
+            <label>
+              Cédula de Identidad
+            </label>
+
+            <div className="inputIcon">
+
+              <IdCard
+                size={18}
+                className="iconLeft"
+              />
+
+              <input
+                type="text"
+                name="cedula"
+                placeholder="Ej: 30123456"
+                value={form.cedula}
+                onChange={handleChange}
+              />
+
+            </div>
+
+          </div>
+
+          {/* TELEFONO */}
+
+          <div className="inputGroup">
+
+            <label>
+              Teléfono
+            </label>
+
+            <div className="inputIcon">
+
+              <Phone
+                size={18}
+                className="iconLeft"
+              />
+
+              <input
+                type="text"
+                name="telefono"
+                placeholder="0412-0000000"
+                value={form.telefono}
+                onChange={handleChange}
+              />
+
+            </div>
+
+          </div>
+
+          {/* FECHA NACIMIENTO */}
+
+          <div className="inputGroup">
+
+            <label>
+              Fecha de Nacimiento
+            </label>
+
+            <div className="inputIcon">
+
+              <CalendarDays
+                size={18}
+                className="iconLeft"
+              />
+
+              <input
+                type="date"
+                name="fechaNacimiento"
+                value={form.fechaNacimiento}
+                onChange={handleChange}
+              />
+
+            </div>
+
+          </div>
+
+        </div>
+
+        {/* 🔥 FICHA LABORAL */}
+
+        <div className="sectionTitle">
+
+          <Briefcase size={18}/>
+
+          <span>
+            Ficha Laboral
+          </span>
+
+        </div>
+
+        <div className="grid">
+
+          {/* FICHA */}
+
+          <div className="inputGroup">
+
+            <label>
+              N° de Ficha
+            </label>
+
+            <div className="inputIcon">
+
+              <BadgeCheck
+                size={18}
+                className="iconLeft"
+              />
+
+              <input
+                type="text"
+                name="ficha"
+                placeholder="Ej: 554433"
+                value={form.ficha}
+                onChange={handleChange}
+              />
+
+            </div>
+
+          </div>
+
+          {/* ROL */}
+
+          <div className="inputGroup">
+
+            <label>
+              Rol
+            </label>
+
+            <select
+              name="rol"
+              value={form.rol}
+              onChange={handleChange}
+            >
+
+              <option value="">
+                Seleccionar Rol
+              </option>
+
+              <option value="administrador">
+                Administrador
+              </option>
+
+              <option value="gerente">
+                Gerente
+              </option>
+
+              <option value="supervisor">
+                Supervisor
+              </option>
+
+              <option value="recursos humanos">
+                Recursos Humanos
+              </option>
+
+            </select>
+
+          </div>
+
+          {/* CARGO */}
+
+          <div className="inputGroup">
+
+            <label>
+              Cargo
+            </label>
+
+            <div className="inputIcon">
+
+              <Briefcase
+                size={18}
+                className="iconLeft"
+              />
+
+              <input
+                type="text"
+                name="cargo"
+                placeholder="Ingrese el cargo"
+                value={form.cargo}
+                onChange={handleChange}
+              />
+
+            </div>
+
+          </div>
+
+          {/* DEPARTAMENTO */}
+
+          <div className="inputGroup">
+
+            <label>
+              Departamento
+            </label>
+
+            <div className="inputIcon">
+
+              <Building2
+                size={18}
+                className="iconLeft"
+              />
+
+              <input
+                type="text"
+                name="departamento"
+                placeholder="Ingrese el departamento"
+                value={form.departamento}
+                onChange={handleChange}
+              />
+
+            </div>
+
+          </div>
+
+          {/* FECHA INGRESO */}
+
+          <div className="inputGroup">
+
+            <label>
+              Fecha de Ingreso
+            </label>
+
+            <div className="inputIcon">
+
+              <CalendarDays
+                size={18}
+                className="iconLeft"
+              />
+
+              <input
+                type="date"
+                name="fechaIngreso"
+                value={form.fechaIngreso}
+                onChange={handleChange}
+              />
+
+            </div>
+
+          </div>
+
+        </div>
+
+        {/* 🔥 BOTONES */}
+
+        <div className="buttons">
+
+          <button
+            className="saveBtn"
+            onClick={crearUsuario}
+            disabled={loading}
+          >
+
+            <UserPlus size={18}/>
+
+            {loading
+              ? "Creando Usuario..."
+              : "Registrar Usuario"}
+
+          </button>
+
+          <button
+            className="backBtn"
+            onClick={() => router.back()}
+          >
+
+            <ArrowLeft size={16}/>
+            Volver
+
+          </button>
+
+        </div>
 
       </div>
 
@@ -348,105 +714,186 @@ export default function CrearUsuario() {
           padding:40px;
         }
 
+        /* 🔥 TITULO */
+
         .panelTitle{
           background:white;
-          padding:12px 20px;
-          border-left:5px solid #e53935;
-          border-radius:10px;
+          padding:18px 24px;
+          border-left:5px solid #dc2626;
+          border-radius:14px;
           margin-bottom:30px;
-          box-shadow:0 5px 15px rgba(0,0,0,0.1);
+          box-shadow:0 5px 18px rgba(0,0,0,0.12);
         }
 
         .panelTitle h1{
-          font-size:24px;
-          font-weight:bold;
+          margin:0;
+          font-size:28px;
+          font-weight:700;
+          color:#111827;
         }
+
+        /* 🔥 CARD */
 
         .formCard{
           background:white;
-          max-width:650px;
-          margin:auto;
           padding:35px;
-          border-radius:18px;
-          box-shadow:0 10px 30px rgba(0,0,0,0.18);
+          border-radius:20px;
+          box-shadow:0 10px 30px rgba(0,0,0,0.15);
+
           display:flex;
           flex-direction:column;
-          gap:18px;
+          gap:25px;
+        }
+
+        /* 🔥 SECCIONES */
+
+        .sectionTitle{
+          display:flex;
+          align-items:center;
+          gap:10px;
+          color:#dc2626;
+          font-weight:700;
+          font-size:15px;
+          text-transform:uppercase;
+          letter-spacing:.5px;
+        }
+
+        /* 🔥 GRID */
+
+        .grid{
+          display:grid;
+          grid-template-columns:
+            repeat(auto-fit,minmax(280px,1fr));
+          gap:20px;
         }
 
         .inputGroup{
           display:flex;
           flex-direction:column;
-          gap:6px;
+          gap:8px;
         }
 
-        .inputGroup label{
-          font-size:14px;
-          font-weight:600;
-          color:#333;
+        label{
+          font-size:13px;
+          font-weight:700;
+          color:#111827;
+          text-transform:uppercase;
         }
 
-        .inputGroup small{
-          font-size:11px;
-          color:#666;
-        }
+        /* 🔥 INPUTS */
 
         input,
         select{
           width:100%;
-          padding:12px;
-          border-radius:10px;
+          height:52px;
+          border-radius:12px;
           border:1px solid #d1d5db;
           outline:none;
+          background:white;
           font-size:14px;
           transition:.2s;
+          padding:0 15px;
         }
 
         input:focus,
         select:focus{
-          border-color:#2563eb;
-          box-shadow:0 0 0 3px rgba(37,99,235,0.1);
+          border-color:#dc2626;
+          box-shadow:0 0 0 3px rgba(220,38,38,0.12);
         }
 
+        /* 🔥 ICONOS */
+
+        .inputIcon,
         .passwordBox{
           position:relative;
           display:flex;
           align-items:center;
         }
 
+        .iconLeft{
+          position:absolute;
+          left:15px;
+          color:#6b7280;
+          z-index:2;
+        }
+
+        .inputIcon input{
+          padding-left:48px;
+        }
+
         .passwordBox input{
-          padding-right:45px;
+          padding-left:48px;
+          padding-right:50px;
         }
 
         .passwordBox button{
           position:absolute;
-          right:12px;
+          right:15px;
+          border:none;
           background:none;
-          border:none;
+          color:#666;
           cursor:pointer;
-          color:#555;
-        }
 
-        .saveBtn{
-          margin-top:10px;
-          background:#2563eb;
-          color:white;
-          border:none;
-          padding:14px;
-          border-radius:10px;
-          cursor:pointer;
-          font-size:15px;
-          font-weight:600;
           display:flex;
           align-items:center;
           justify-content:center;
-          gap:8px;
+        }
+
+        /* 🔥 PASSWORD INFO */
+
+        .passwordInfo{
+          background:#fef2f2;
+          border:1px solid #fecaca;
+          padding:16px;
+          border-radius:14px;
+          color:#991b1b;
+          font-size:14px;
+        }
+
+        .passwordInfo strong{
+          display:block;
+          margin-bottom:8px;
+        }
+
+        .passwordInfo ul{
+          padding-left:18px;
+        }
+
+        .passwordInfo li{
+          margin-bottom:5px;
+        }
+
+        /* 🔥 BOTONES */
+
+        .buttons{
+          display:flex;
+          gap:14px;
+          margin-top:10px;
+        }
+
+        .saveBtn{
+          flex:1;
+          height:54px;
+          background:#dc2626;
+          color:white;
+          border:none;
+          border-radius:12px;
+          cursor:pointer;
+          font-size:15px;
+          font-weight:700;
+
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          gap:10px;
+
           transition:.2s;
         }
 
         .saveBtn:hover{
-          transform:scale(1.02);
-          box-shadow:0 8px 20px rgba(37,99,235,0.3);
+          background:#b91c1c;
+          transform:translateY(-2px);
+          box-shadow:0 10px 20px rgba(220,38,38,0.25);
         }
 
         .saveBtn:disabled{
@@ -455,22 +902,45 @@ export default function CrearUsuario() {
         }
 
         .backBtn{
-          background:#e5e7eb;
+          height:54px;
+          padding:0 24px;
+          background:#111827;
+          color:white;
           border:none;
-          padding:12px;
-          border-radius:10px;
+          border-radius:12px;
           cursor:pointer;
+          font-size:14px;
+          font-weight:700;
+
           display:flex;
           align-items:center;
           justify-content:center;
-          gap:6px;
-          font-weight:500;
+          gap:8px;
+
           transition:.2s;
         }
 
         .backBtn:hover{
-          transform:scale(1.02);
-          box-shadow:0 5px 15px rgba(0,0,0,0.15);
+          background:#1f2937;
+          transform:translateY(-2px);
+        }
+
+        /* 🔥 RESPONSIVE */
+
+        @media(max-width:768px){
+
+          .main{
+            padding:20px;
+          }
+
+          .formCard{
+            padding:25px;
+          }
+
+          .buttons{
+            flex-direction:column;
+          }
+
         }
 
       `}</style>
