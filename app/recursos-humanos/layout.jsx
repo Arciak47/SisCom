@@ -17,6 +17,7 @@ export default function LayoutRRHH({ children }) {
   const [reportesOpen, setReportesOpen] = useState(false);
   const [nombreUsuario, setNombreUsuario] = useState("Cargando...");
   const [authorized, setAuthorized] = useState(false);
+  const [menuAbierto, setMenuAbierto] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -58,8 +59,27 @@ export default function LayoutRRHH({ children }) {
 
   return (
     <div className="sl-layout">
+      {/* Mobile Topbar */}
+      <header className="sl-mobile-header">
+        <button className="sl-menu-toggle" onClick={() => setMenuAbierto(!menuAbierto)} aria-label="Abrir menú">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="4" x2="20" y1="12" y2="12" />
+            <line x1="4" x2="20" y1="6" y2="6" />
+            <line x1="4" x2="20" y1="18" y2="18" />
+          </svg>
+        </button>
+        <div className="sl-mobile-logo">
+          <span className="sl-sis">Sis</span><span className="sl-com">COM</span>
+        </div>
+        <div style={{ width: 24 }} />
+      </header>
 
-      <aside className="sl-sidebar">
+      {/* Backdrop for mobile */}
+      {menuAbierto && (
+        <div className="sl-backdrop" onClick={() => setMenuAbierto(false)} />
+      )}
+
+      <aside className={`sl-sidebar ${menuAbierto ? "open" : ""}`}>
         <div className="sl-top">
           <div className="sl-logo">
             <Image src="/logo-invecem-gerente.png" width={108} height={54} alt="INVECEM"/>
@@ -70,13 +90,13 @@ export default function LayoutRRHH({ children }) {
           </div>
 
           <nav className="sl-nav">
-            <a className="sl-item" onClick={() => router.push("/recursos-humanos")}>
+            <a className="sl-item" onClick={() => { router.push("/recursos-humanos"); setMenuAbierto(false); }}>
               <Home size={18}/><span>Dashboard</span>
             </a>
-            <a className="sl-item" onClick={() => router.push("/recursos-humanos/perfil")}>
+            <a className="sl-item" onClick={() => { router.push("/recursos-humanos/perfil"); setMenuAbierto(false); }}>
               <UserCircle2 size={18}/><span>Mi Perfil</span>
             </a>
-            <a className="sl-item" onClick={() => router.push("/recursos-humanos/chat")}>
+            <a className="sl-item" onClick={() => { router.push("/recursos-humanos/chat"); setMenuAbierto(false); }}>
               <MessageSquare size={18}/><span>Mensajería</span>
             </a>
 
@@ -86,13 +106,13 @@ export default function LayoutRRHH({ children }) {
             </div>
             {reportesOpen && (
               <div className="sl-sub">
-                <a onClick={() => router.push("/recursos-humanos/reportes/diario")}>
+                <a onClick={() => { router.push("/recursos-humanos/reportes/diario"); setMenuAbierto(false); }}>
                   <FileText size={15}/><span>Reporte Diario</span>
                 </a>
-                <a onClick={() => router.push("/recursos-humanos/reportes/semanal")}>
+                <a onClick={() => { router.push("/recursos-humanos/reportes/semanal"); setMenuAbierto(false); }}>
                   <BarChart3 size={15}/><span>Reporte Semanal</span>
                 </a>
-                <a onClick={() => router.push("/recursos-humanos/reportes/mensual")}>
+                <a onClick={() => { router.push("/recursos-humanos/reportes/mensual"); setMenuAbierto(false); }}>
                   <PieChart size={15}/><span>Reporte Mensual</span>
                 </a>
               </div>
@@ -289,8 +309,79 @@ export default function LayoutRRHH({ children }) {
           background-size: cover;
           background-attachment: fixed;
         }
-      `}</style>
 
+        /* Responsive Layout classes */
+        .sl-mobile-header {
+          display: none;
+        }
+        .sl-backdrop {
+          display: none;
+        }
+
+        @media (max-width: 768px) {
+          .sl-layout {
+            flex-direction: column;
+          }
+          .sl-mobile-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 60px;
+            background: #ffffff;
+            border-bottom: 1px solid #e8edf5;
+            padding: 0 16px;
+            position: sticky;
+            top: 0;
+            z-index: 30;
+            flex-shrink: 0;
+          }
+          .sl-menu-toggle {
+            background: none;
+            border: none;
+            color: #1a202c;
+            cursor: pointer;
+            padding: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+          }
+          .sl-menu-toggle:hover {
+            background: #f1f5f9;
+          }
+          .sl-mobile-logo {
+            font-size: 22px;
+            font-weight: 950;
+            font-family: var(--font-rajdhani), sans-serif;
+          }
+          .sl-sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            transform: translateX(-100%);
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            z-index: 40;
+            height: 100vh;
+            border-right: 1px solid #cbd5e1;
+          }
+          .sl-sidebar.open {
+            transform: translateX(0);
+          }
+          .sl-backdrop {
+            display: block;
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.4);
+            backdrop-filter: blur(4px);
+            z-index: 35;
+          }
+          .sl-main {
+            padding: 20px 16px;
+            height: calc(100vh - 60px);
+          }
+        }
+      `}</style>
     </div>
   );
 }
