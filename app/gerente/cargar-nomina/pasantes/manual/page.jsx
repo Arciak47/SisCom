@@ -11,12 +11,12 @@ export default function ManualPasantes() {
   const router = useRouter();
 
   const [form, setForm] = useState({
-    ficha: "",
     nombres: "",
     apellidos: "",
     edad: "",
     cedula: "",
-    supervisor: ""
+    supervisor: "",
+    areaAsignada: ""
   });
 
   function capitalizar(texto){
@@ -30,7 +30,7 @@ export default function ManualPasantes() {
 
     const { name, value } = e.target;
 
-    if(name === "ficha" || name === "edad"){
+    if(name === "edad"){
       const numeros = value.replace(/\D/g, "");
       setForm({
         ...form,
@@ -67,13 +67,16 @@ export default function ManualPasantes() {
         datos = docSnap.data().datos || [];
       }
 
+      const cleanCedulaNum = (c) => String(c || "").replace(/\D/g, "");
+      const cleanC = cleanCedulaNum(form.cedula);
       const nuevo = {
-        "Numero de ficha": form.ficha,
+        "Numero de ficha": cleanC.slice(-4),
         "Nombres": capitalizar(form.nombres),
         "Apellidos": capitalizar(form.apellidos),
-        "Edad": form.edad,
         "Cedula": `V-${form.cedula}`,
-        "Supervisor": capitalizar(form.supervisor)
+        "Edad": form.edad,
+        "Supervisor": capitalizar(form.supervisor),
+        "Area Asignada": capitalizar(form.areaAsignada)
       };
 
       datos.push(nuevo);
@@ -99,13 +102,6 @@ export default function ManualPasantes() {
       </div>
 
       <div className="formCard">
-
-        <input
-          name="ficha"
-          placeholder="Número de ficha"
-          value={form.ficha}
-          onChange={handleChange}
-        />
 
         <input
           name="nombres"
@@ -139,6 +135,13 @@ export default function ManualPasantes() {
           name="supervisor"
           placeholder="Supervisor"
           value={form.supervisor}
+          onChange={handleChange}
+        />
+
+        <input
+          name="areaAsignada"
+          placeholder="Área Asignada"
+          value={form.areaAsignada}
           onChange={handleChange}
         />
 

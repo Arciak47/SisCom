@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 
 import { db } from "../../lib/firebase";
 
@@ -24,7 +24,7 @@ import {
   useSearchParams
 } from "next/navigation";
 
-export default function CambiarPasswordAdmin() {
+function CambiarPasswordAdminContent() {
 
   const router = useRouter();
 
@@ -166,6 +166,10 @@ export default function CambiarPasswordAdmin() {
           "/api/admin/cambiar-password",
           {
             method: "POST",
+
+            headers: {
+              "Content-Type": "application/json"
+            },
 
             body: JSON.stringify({
 
@@ -601,4 +605,12 @@ export default function CambiarPasswordAdmin() {
 
   );
 
+}
+
+export default function CambiarPasswordAdmin() {
+  return (
+    <Suspense fallback={<p className="loading">Cargando...</p>}>
+      <CambiarPasswordAdminContent />
+    </Suspense>
+  );
 }

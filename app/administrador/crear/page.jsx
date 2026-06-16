@@ -146,47 +146,33 @@ export default function CrearUsuario() {
 
       setLoading(true);
 
-      const userCredential =
-        await createUserWithEmailAndPassword(
-          auth,
-          form.correo.trim(),
-          form.clave
-        );
-
-      const user = userCredential.user;
-
-      // 🔥 GUARDAR FIRESTORE
-      await setDoc(doc(db, "usuarios", user.uid), {
-
-        correo: form.correo.trim(),
-
-        clave: form.clave,
-
-        nombres: capitalizar(form.nombres),
-
-        apellidos: capitalizar(form.apellidos),
-
-        cedula: form.cedula,
-
-        telefono: form.telefono,
-
-        fechaNacimiento: form.fechaNacimiento,
-
-        ficha: form.ficha,
-
-        rol: form.rol,
-
-        cargo: capitalizar(form.cargo),
-
-        departamento: capitalizar(form.departamento),
-
-        fechaIngreso: form.fechaIngreso,
-
-        status: "activo",
-
-        creado: new Date()
-
+      const res = await fetch("/api/admin/crear-usuario", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          correo: form.correo,
+          clave: form.clave,
+          nombres: form.nombres,
+          apellidos: form.apellidos,
+          cedula: form.cedula,
+          telefono: form.telefono,
+          fechaNacimiento: form.fechaNacimiento,
+          ficha: form.ficha,
+          rol: form.rol,
+          cargo: form.cargo,
+          departamento: form.departamento,
+          fechaIngreso: form.fechaIngreso,
+          creadoPor: "Administrador"
+        })
       });
+
+      const resData = await res.json();
+
+      if (!res.ok) {
+        throw new Error(resData.error || "Error al crear usuario");
+      }
 
       alert("✅ Usuario creado correctamente");
 
@@ -196,19 +182,7 @@ export default function CrearUsuario() {
 
       console.error(error);
 
-      if(error.code === "auth/email-already-in-use"){
-
-        alert("❌ El correo ya existe");
-
-      }else if(error.code === "auth/invalid-email"){
-
-        alert("❌ Correo inválido");
-
-      }else{
-
-        alert("❌ Error al crear usuario");
-
-      }
+      alert(`❌ ${error.message || "Error al crear usuario"}`);
 
     }
 

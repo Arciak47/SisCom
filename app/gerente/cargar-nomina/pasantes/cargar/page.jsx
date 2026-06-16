@@ -21,9 +21,10 @@ export default function CargarPasantes() {
     "Numero de ficha",
     "Nombres",
     "Apellidos",
-    "Edad",
     "Cedula",
-    "Supervisor"
+    "Edad",
+    "Supervisor",
+    "Area Asignada"
   ];
 
   const limpiar = (txt) =>
@@ -52,12 +53,12 @@ export default function CargarPasantes() {
 
   function validar(headers) {
     const requeridos = [
-      "Numero de ficha",
       "Nombres",
       "Apellidos",
-      "Edad",
       "Cedula",
-      "Supervisor"
+      "Edad",
+      "Supervisor",
+      "Area Asignada"
     ];
 
     const normal = headers.map(h => h?.toString().toLowerCase());
@@ -95,14 +96,19 @@ export default function CargarPasantes() {
         return;
       }
 
-      const formatted = json.map((row) => ({
-        "Numero de ficha": limpiar(row["Numero de ficha"]),
-        "Nombres": capitalizar(limpiar(row["Nombres"])),
-        "Apellidos": capitalizar(limpiar(row["Apellidos"])),
-        "Edad": limpiar(row["Edad"]),
-        "Cedula": formatearCedula(row["Cedula"]),
-        "Supervisor": capitalizar(limpiar(row["Supervisor"]))
-      }));
+      const formatted = json.map((row) => {
+        const cleanCedulaNum = (c) => String(c || "").replace(/\D/g, "");
+        const cleanC = cleanCedulaNum(row["Cedula"]);
+        return {
+          "Numero de ficha": cleanC.slice(-4),
+          "Nombres": capitalizar(limpiar(row["Nombres"])),
+          "Apellidos": capitalizar(limpiar(row["Apellidos"])),
+          "Cedula": formatearCedula(row["Cedula"]),
+          "Edad": limpiar(row["Edad"]),
+          "Supervisor": capitalizar(limpiar(row["Supervisor"])),
+          "Area Asignada": capitalizar(limpiar(row["Area Asignada"]))
+        };
+      });
 
       setData(formatted);
       setFileLoaded(true);

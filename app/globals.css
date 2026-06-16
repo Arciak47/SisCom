@@ -1,126 +1,121 @@
 @import "tailwindcss";
 
+/* ══════════════════════════════════════════
+   SISCOM - Sistema de Control de Comedor
+   Diseño Premium 2026 — Light Executive
+══════════════════════════════════════════ */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Colores base */
+  --bg-primary:   #f0f4ff;
+  --bg-secondary: #e8edf8;
+
+  /* Acento principal */
+  --red:          #e53e3e;
+  --red-dark:     #c53030;
+  --red-light:    rgba(229, 62, 62, 0.08);
+
+  /* Texto */
+  --text-primary:   #1a202c;
+  --text-secondary: #4a5568;
+  --text-muted:     #718096;
+
+  /* Glass / Cards */
+  --glass:        rgba(255,255,255,0.85);
+  --glass-border: rgba(255,255,255,0.9);
+  --card-shadow:  0 4px 24px rgba(26,32,60,0.07);
+
+  /* Sidebar */
+  --sidebar-bg:   #ffffff;
+  --sidebar-w:    265px;
+
+  /* Font Fallbacks */
+  --font-outfit: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-rajdhani: 'Rajdhani', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/* ── RESET ─────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  height: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  height: 100%;
+  font-family: var(--font-outfit), 'Segoe UI', sans-serif;
+  background: linear-gradient(135deg, #f0f4ff 0%, #e6eaf8 40%, #edf0fb 100%);
+  color: var(--text-primary);
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* ===== RESPONSIVE GENERAL ===== */
-
-*{
-  box-sizing:border-box;
+/* Decoración de fondo */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 80% 50% at 15% 10%, rgba(102,126,234,0.08) 0%, transparent 55%),
+    radial-gradient(ellipse 60% 40% at 85% 90%, rgba(237,100,166,0.06) 0%, transparent 55%),
+    radial-gradient(ellipse 50% 60% at 50% 50%, rgba(255,255,255,0.5) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
 }
 
-html,
-body{
-  overflow-x:hidden;
-  margin:0;
-  padding:0;
-  background:#f8fafc;
-  font-family:sans-serif;
+/* ── SCROLLBAR ──────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(102,126,234,0.2);
+  border-radius: 6px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(102,126,234,0.4);
 }
 
-img{
-  max-width:100%;
-  height:auto;
+/* ── TIPOGRAFÍA ─────────────────────────── */
+h1,h2,h3,h4,h5,h6 {
+  font-family: var(--font-rajdhani), var(--font-outfit), sans-serif;
+  color: var(--text-primary);
+  line-height: 1.2;
 }
 
-input,
-button,
-select,
-textarea{
-  font-size:16px;
+/* ── FORMULARIOS GLOBALES ───────────────── */
+input, button, select, textarea {
+  font-family: var(--font-outfit), sans-serif;
 }
 
-table{
-  width:100%;
-  border-collapse:collapse;
+/* ── TABLAS GLOBALES ────────────────────── */
+table {
+  width: 100%;
+  border-collapse: collapse;
 }
 
-/* ===== TABLETS ===== */
-
-@media(max-width:1024px){
-
-  .cards,
-  .statsGrid,
-  .grid{
-    grid-template-columns:1fr 1fr !important;
+/* ── RESPONSIVE ─────────────────────────── */
+@media (max-width: 1024px) {
+  .cards, .statsGrid, .grid {
+    grid-template-columns: 1fr 1fr !important;
   }
-
 }
 
-/* ===== CELULARES ===== */
-
-@media(max-width:768px){
-
-  .container{
-    padding:18px !important;
+@media (max-width: 768px) {
+  .container { padding: 16px !important; }
+  .header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
   }
-
-  .header{
-    flex-direction:column !important;
-    align-items:flex-start !important;
+  .cards, .statsGrid, .grid {
+    grid-template-columns: 1fr !important;
   }
-
-  .cards,
-  .statsGrid,
-  .grid{
-    grid-template-columns:1fr !important;
+  table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+    font-size: 12px;
   }
-
-  .card{
-    flex-direction:column !important;
-  }
-
-  .searchSection{
-    flex-direction:column !important;
-    align-items:stretch !important;
-  }
-
-  .panelTitle h1,
-  .bigTitle{
-    font-size:22px !important;
-  }
-
-  .timeCard h2{
-    font-size:28px !important;
-  }
-
-  .welcome{
-    width:100%;
-  }
-
-  .smallBtn,
-  .saveBtn,
-  .searchBtn{
-    width:100%;
-  }
-
-  table{
-    display:block;
-    overflow-x:auto;
-    white-space:nowrap;
-    font-size:12px;
-  }
-
 }

@@ -14,10 +14,11 @@ export default function VerNominaVisitantes() {
   const [loading, setLoading] = useState(true);
 
   const headers = [
+    "Numero de ficha",
     "Nombres",
     "Apellidos",
     "Cedula",
-    "Area",
+    "Edad",
     "Supervisor"
   ];
 

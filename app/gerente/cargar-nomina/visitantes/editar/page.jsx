@@ -28,7 +28,14 @@ export default function EditarVisitantes(){
       const docSnap = await getDoc(docRef);
 
       if(docSnap.exists()){
-        setData(docSnap.data().datos || []);
+        const rawDatos = docSnap.data().datos || [];
+        const adaptados = rawDatos.map(item => {
+          if (!item["Numero de ficha"]) {
+            item["Numero de ficha"] = item["Cedula"];
+          }
+          return item;
+        });
+        setData(adaptados);
       }
 
       setLoading(false);
@@ -44,7 +51,7 @@ export default function EditarVisitantes(){
     let newData = [...data];
 
     // SOLO NÚMEROS
-    if(field === "Numero de ficha" || field === "Edad"){
+    if(field === "Edad"){
       value = value.replace(/\D/g, "");
     }
 
@@ -52,6 +59,7 @@ export default function EditarVisitantes(){
     if(field === "Cedula"){
       const numeros = value.replace(/\D/g, "");
       value = `V-${numeros}`;
+      newData[index]["Numero de ficha"] = value;
     }
 
     // TEXTOS EN MAYÚSCULA INICIAL
@@ -120,11 +128,11 @@ export default function EditarVisitantes(){
               <thead>
                 <tr>
                   <th>#</th>
-                  <th>Numero de ficha</th>
+                  <th>Ficha</th>
                   <th>Nombres</th>
                   <th>Apellidos</th>
-                  <th>Edad</th>
                   <th>Cedula</th>
+                  <th>Edad</th>
                   <th>Supervisor</th>
                   <th>Acciones</th>
                 </tr>
@@ -139,7 +147,9 @@ export default function EditarVisitantes(){
                     <td>{index + 1}</td>
 
                     <td>
-                      <input value={row["Numero de ficha"] || ""} onChange={(e)=>handleChange(index,"Numero de ficha",e.target.value)}/>
+                      <span style={{ fontSize: "13px", fontWeight: "bold", padding: "5px" }}>
+                        {row["Numero de ficha"] || "-"}
+                      </span>
                     </td>
 
                     <td>
@@ -151,11 +161,11 @@ export default function EditarVisitantes(){
                     </td>
 
                     <td>
-                      <input value={row["Edad"] || ""} onChange={(e)=>handleChange(index,"Edad",e.target.value)}/>
+                      <input value={row["Cedula"] || ""} onChange={(e)=>handleChange(index,"Cedula",e.target.value)}/>
                     </td>
 
                     <td>
-                      <input value={row["Cedula"] || ""} onChange={(e)=>handleChange(index,"Cedula",e.target.value)}/>
+                      <input value={row["Edad"] || ""} onChange={(e)=>handleChange(index,"Edad",e.target.value)}/>
                     </td>
 
                     <td>

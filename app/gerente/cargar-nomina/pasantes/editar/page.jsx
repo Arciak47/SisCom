@@ -28,7 +28,16 @@ export default function EditarPasantes(){
       const docSnap = await getDoc(docRef);
 
       if(docSnap.exists()){
-        setData(docSnap.data().datos || []);
+        const rawDatos = docSnap.data().datos || [];
+        const cleanCedulaNum = (c) => String(c || "").replace(/\D/g, "");
+        const adaptados = rawDatos.map(item => {
+          if (!item["Numero de ficha"]) {
+            const cleanC = cleanCedulaNum(item["Cedula"]);
+            item["Numero de ficha"] = cleanC.slice(-4);
+          }
+          return item;
+        });
+        setData(adaptados);
       }
 
       setLoading(false);
@@ -44,7 +53,7 @@ export default function EditarPasantes(){
     let newData = [...data];
 
     // SOLO NÚMEROS
-    if(field === "Numero de ficha" || field === "Edad"){
+    if(field === "Edad"){
       value = value.replace(/\D/g, "");
     }
 
@@ -52,13 +61,15 @@ export default function EditarPasantes(){
     if(field === "Cedula"){
       const numeros = value.replace(/\D/g, "");
       value = `V-${numeros}`;
+      newData[index]["Numero de ficha"] = numeros.slice(-4);
     }
 
     // TEXTOS EN MAYÚSCULA INICIAL
     if(
       field === "Nombres" ||
       field === "Apellidos" ||
-      field === "Supervisor"
+      field === "Supervisor" ||
+      field === "Area Asignada"
     ){
       value = capitalizar(value);
     }
@@ -120,12 +131,13 @@ export default function EditarPasantes(){
               <thead>
                 <tr>
                   <th>#</th>
-                  <th>Numero de ficha</th>
+                  <th>Ficha</th>
                   <th>Nombres</th>
                   <th>Apellidos</th>
-                  <th>Edad</th>
                   <th>Cedula</th>
+                  <th>Edad</th>
                   <th>Supervisor</th>
+                  <th>Área Asignada</th>
                   <th>Acciones</th>
                 </tr>
               </thead>
@@ -139,7 +151,9 @@ export default function EditarPasantes(){
                     <td>{index + 1}</td>
 
                     <td>
-                      <input value={row["Numero de ficha"] || ""} onChange={(e)=>handleChange(index,"Numero de ficha",e.target.value)}/>
+                      <span style={{ fontSize: "13px", fontWeight: "bold", padding: "5px" }}>
+                        {row["Numero de ficha"] || "-"}
+                      </span>
                     </td>
 
                     <td>
@@ -151,15 +165,19 @@ export default function EditarPasantes(){
                     </td>
 
                     <td>
-                      <input value={row["Edad"] || ""} onChange={(e)=>handleChange(index,"Edad",e.target.value)}/>
-                    </td>
-
-                    <td>
                       <input value={row["Cedula"] || ""} onChange={(e)=>handleChange(index,"Cedula",e.target.value)}/>
                     </td>
 
                     <td>
+                      <input value={row["Edad"] || ""} onChange={(e)=>handleChange(index,"Edad",e.target.value)}/>
+                    </td>
+
+                    <td>
                       <input value={row["Supervisor"] || ""} onChange={(e)=>handleChange(index,"Supervisor",e.target.value)}/>
+                    </td>
+
+                    <td>
+                      <input value={row["Area Asignada"] || ""} onChange={(e)=>handleChange(index,"Area Asignada",e.target.value)}/>
                     </td>
 
                     <td>

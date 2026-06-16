@@ -4,478 +4,261 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 
-import {
-  signOut,
-  onAuthStateChanged
-} from "firebase/auth";
+import { signOut, onAuthStateChanged } from "firebase/auth";
+import { auth, db } from "../lib/firebase";
+import { doc, getDoc } from "firebase/firestore";
 
 import {
-  auth,
-  db
-} from "../lib/firebase";
-
-import {
-  doc,
-  getDoc
-} from "firebase/firestore";
-
-import {
-  Home,
-  Users,
-  UserPlus,
-  KeyRound,
-  ChevronDown,
-  ChevronRight,
-  LogOut,
-  UserCircle2
+  Home, Users, LogOut,
+  UserCircle2, ClipboardList, MessageSquare
 } from "lucide-react";
 
 export default function AdminLayout({ children }) {
 
   const router = useRouter();
+  const [nombreAdmin, setNombreAdmin] = useState("Cargando...");
+  const [authorized, setAuthorized] = useState(false);
 
-  const [usuariosOpen, setUsuariosOpen] =
-    useState(false);
-
-  const [nombreAdmin, setNombreAdmin] =
-    useState("Cargando...");
-
-  // 🔥 CARGAR NOMBRE
   useEffect(() => {
-
-    const unsubscribe =
-      onAuthStateChanged(auth, async(user)=>{
-
-        if(user){
-
-          try{
-
-            const docRef =
-              doc(db, "usuarios", user.uid);
-
-            const snap =
-              await getDoc(docRef);
-
-            if(snap.exists()){
-
-              const data = snap.data();
-
-              setNombreAdmin(
-                `${data.nombres || ""} ${data.apellidos || ""}`
-              );
-
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        try {
+          const snap = await getDoc(doc(db, "usuarios", user.uid));
+          if (snap.exists()) {
+            const data = snap.data();
+            if (data.rol?.toLowerCase() === "administrador") {
+              setNombreAdmin(`${data.nombres || ""} ${data.apellidos || ""}`);
+              setAuthorized(true);
+              return;
             }
-
-          }catch(error){
-
-            console.log(error);
-
           }
-
-        }
-
-      });
-
+        } catch (e) { console.log(e); }
+      }
+      router.push("/login");
+    });
     return () => unsubscribe();
-
   }, []);
 
-  // 🔥 CERRAR SESIÓN
-  const cerrarSesion = async ()=>{
-
+  const cerrarSesion = async () => {
     await signOut(auth);
-
     router.push("/login");
-
   };
 
+  if (!authorized) {
+    return (
+      <div style={{ display:"flex", height:"100vh", alignItems:"center", justifyContent:"center" }}>
+        <div style={{ textAlign:"center" }}>
+          <div style={{ border:"3px solid #e2e8f0", borderTop:"3px solid #e53e3e", borderRadius:"50%", width:"38px", height:"38px", animation:"spin 0.8s linear infinite", margin:"0 auto 12px" }} />
+          <p style={{ color:"#718096", fontWeight:600, fontSize:"14px" }}>Verificando credenciales…</p>
+          <style>{`@keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}`}</style>
+        </div>
+      </div>
+    );
+  }
+
   return (
+    <div className="sl-layout">
 
-    <div className="layout">
-
-      {/* SIDEBAR */}
-      <aside className="sidebar">
-
-        <div className="sidebarTop">
-
-          {/* LOGO */}
-          <div className="logoArea">
-
-            <Image
-              src="/logo-invecem-gerente.png"
-              width={120}
-              height={60}
-              alt="logo"
-            />
-
-            <h2 className="siscom">
-
-              <span className="sis">
-                Sis
-              </span>
-
-              <span className="com">
-                COM
-              </span>
-
+      <aside className="sl-sidebar">
+        <div className="sl-top">
+          <div className="sl-logo">
+            <Image src="/logo-invecem-gerente.png" width={108} height={54} alt="INVECEM"/>
+            <h2 className="sl-brand">
+              <span className="sl-sis">Sis</span><span className="sl-com">COM</span>
             </h2>
-
+            <span className="sl-role-tag">ADMINISTRADOR</span>
           </div>
 
-          {/* NAV */}
-          <nav>
+          <nav className="sl-nav">
 
-            {/* PANEL */}
-            <a
-              className="menuItem"
-              onClick={() =>
-                router.push("/administrador")
-              }
-            >
-
-              <div className="menuLeft">
-
-                <Home size={20}/>
-
-                <span>
-                  Panel Principal
-                </span>
-
-              </div>
-
+            <a className="sl-item" onClick={() => router.push("/administrador")}>
+              <Home size={18}/><span>Dashboard</span>
             </a>
 
-            {/* PERFIL */}
-            <a
-              className="menuItem"
-              onClick={() =>
-                router.push("/administrador/perfil")
-              }
-            >
-
-              <div className="menuLeft">
-
-                <UserCircle2 size={20}/>
-
-                <span>
-                  Mi Perfil
-                </span>
-
-              </div>
-
+            <a className="sl-item" onClick={() => router.push("/administrador/usuarios")}>
+              <Users size={18}/><span>Usuarios</span>
             </a>
 
-            {/* GESTIÓN */}
-            <div
-              className="menuItem"
-              onClick={() =>
-                setUsuariosOpen(!usuariosOpen)
-              }
-            >
+            <a className="sl-item" onClick={() => router.push("/administrador/auditoria")}>
+              <ClipboardList size={18}/><span>Auditoría</span>
+            </a>
 
-              <div className="menuLeft">
+            <a className="sl-item" onClick={() => router.push("/administrador/chat")}>
+              <MessageSquare size={18}/><span>Mensajería</span>
+            </a>
 
-                <Users size={20}/>
-
-                <span>
-                  Gestión de Usuarios
-                </span>
-
-              </div>
-
-              {
-                usuariosOpen
-                ? <ChevronDown size={18}/>
-                : <ChevronRight size={18}/>
-              }
-
-            </div>
-
-            {usuariosOpen && (
-
-              <div className="submenu">
-
-                <a
-                  onClick={() =>
-                    router.push("/administrador/crear")
-                  }
-                >
-
-                  <UserPlus size={17}/>
-
-                  <span>
-                    Crear Usuario
-                  </span>
-
-                </a>
-
-                <a
-                  onClick={() =>
-                    router.push("/administrador/usuarios")
-                  }
-                >
-
-                  <Users size={17}/>
-
-                  <span>
-                    Usuarios del Sistema
-                  </span>
-
-                </a>
-
-                <a
-                  onClick={() =>
-                    router.push(
-                      "/administrador/cambiar-clave"
-                    )
-                  }
-                >
-
-                  <KeyRound size={17}/>
-
-                  <span>
-                    Cambiar Contraseñas
-                  </span>
-
-                </a>
-
-              </div>
-
-            )}
+            <a className="sl-item" onClick={() => router.push("/administrador/perfil")}>
+              <UserCircle2 size={18}/><span>Mi Perfil</span>
+            </a>
 
           </nav>
-
         </div>
 
-        {/* ABAJO */}
-        <div className="sidebarBottom">
-
-          <div className="perfil">
-
-            <Image
-              src="/perfil-gerente.png"
-              width={44}
-              height={44}
-              alt="perfil"
-            />
-
-            <div className="perfilInfo">
-
-              <p className="nombre">
-
-                {nombreAdmin}
-
-              </p>
-
-              <span className="cargo">
-                ADMIN
-              </span>
-
+        <div className="sl-bottom">
+          <div className="sl-user">
+            <Image src="/perfil-gerente.png" width={40} height={40} alt="perfil"/>
+            <div>
+              <p className="sl-uname">{nombreAdmin}</p>
+              <span className="sl-urole">Administrador</span>
             </div>
-
           </div>
-
-          <button
-            className="logout"
-            onClick={cerrarSesion}
-          >
-
-            <LogOut size={18}/>
-
-            <span>
-              Cerrar Sesión
-            </span>
-
+          <button className="sl-logout" onClick={cerrarSesion}>
+            <LogOut size={16}/><span>Cerrar Sesión</span>
           </button>
-
         </div>
-
       </aside>
 
-      {/* MAIN */}
-      <main className="main">
-
+      <main className="sl-main">
         {children}
-
       </main>
 
       <style jsx>{`
-
-        .layout{
-          display:flex;
-          height:100vh;
-          background:url('/background.png');
-          background-size:cover;
-          font-family:Arial;
+        .sl-layout {
+          display: flex;
+          height: 100vh;
+          overflow: hidden;
+          position: relative;
+          z-index: 1;
         }
-
-        /* SIDEBAR */
-        .sidebar{
-          width:270px;
-          background:white;
-          padding:25px 20px;
-          display:flex;
-          flex-direction:column;
-          justify-content:space-between;
-          box-shadow:2px 0 10px rgba(0,0,0,0.1);
-          overflow-y:auto;
+        .sl-sidebar {
+          width: 255px;
+          flex-shrink: 0;
+          background: #ffffff;
+          border-right: 1px solid #e8edf5;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+          overflow-y: auto;
+          z-index: 20;
+          box-shadow: 4px 0 20px rgba(102,126,234,0.06);
         }
-
-        .sidebarTop{
-          display:flex;
-          flex-direction:column;
+        .sl-top {
+          display: flex;
+          flex-direction: column;
+          padding: 24px 16px 0;
+          gap: 20px;
         }
-
-        /* LOGO */
-        .logoArea{
-          display:flex;
-          flex-direction:column;
-          align-items:center;
-          margin-bottom:25px;
+        .sl-logo {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          padding-bottom: 20px;
+          border-bottom: 1px solid #f1f5f9;
+          gap: 4px;
         }
-
-        .siscom{
-          font-size:30px;
-          font-weight:900;
-          margin-top:6px;
+        .sl-brand {
+          font-size: 28px;
+          font-weight: 900;
+          letter-spacing: 1px;
+          font-family: var(--font-rajdhani), sans-serif;
+          margin: 2px 0 0;
         }
-
-        .sis{
-          color:black;
+        .sl-sis { color: #1a202c; }
+        .sl-com { color: #e53e3e; }
+        .sl-role-tag {
+          font-size: 9px;
+          font-weight: 800;
+          letter-spacing: 2.5px;
+          color: #e53e3e;
+          background: rgba(229,62,62,0.07);
+          border: 1px solid rgba(229,62,62,0.15);
+          padding: 3px 10px;
+          border-radius: 20px;
+          text-transform: uppercase;
         }
-
-        .com{
-          color:#e53935;
+        .sl-nav {
+          display: flex;
+          flex-direction: column;
+          gap: 3px;
         }
-
-        /* NAV */
-        nav{
-          display:flex;
-          flex-direction:column;
-          gap:8px;
+        .sl-item {
+          display: flex;
+          align-items: center;
+          gap: 11px;
+          padding: 11px 13px;
+          border-radius: 10px;
+          cursor: pointer;
+          transition: all 0.18s ease;
+          color: #64748b;
+          font-size: 14px;
+          font-weight: 500;
+          text-decoration: none;
+          border: 1px solid transparent;
         }
-
-        .menuItem{
-          display:flex;
-          align-items:center;
-          justify-content:space-between;
-          padding:13px 14px;
-          border-radius:10px;
-          cursor:pointer;
-          transition:.2s;
+        .sl-item:hover {
+          background: linear-gradient(90deg, rgba(229,62,62,0.06) 0%, transparent 100%);
+          color: #e53e3e;
+          border-color: rgba(229,62,62,0.1);
         }
+        .sl-item span { flex: 1; }
 
-        .menuItem:hover{
-          background:#f5f5f5;
+        .sl-bottom {
+          padding: 16px;
+          border-top: 1px solid #f1f5f9;
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
         }
-
-        .menuLeft{
-          display:flex;
-          align-items:center;
-          gap:14px;
+        .sl-user {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 10px 12px;
+          background: #f8fafc;
+          border-radius: 10px;
+          border: 1px solid #e8edf5;
         }
-
-        .menuLeft span{
-          font-size:16px;
-          font-weight:600;
-          color:#111;
-          text-align:left;
+        .sl-uname {
+          font-size: 13px;
+          font-weight: 700;
+          color: #1a202c;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          max-width: 140px;
         }
-
-        /* SUBMENU */
-        .submenu{
-          margin-left:34px;
-          display:flex;
-          flex-direction:column;
-          gap:10px;
-          margin-top:4px;
-          margin-bottom:4px;
+        .sl-urole {
+          font-size: 10px;
+          color: #e53e3e;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
         }
-
-        .submenu a{
-          display:flex;
-          align-items:center;
-          gap:10px;
-          cursor:pointer;
-          font-size:14px;
-          color:#555;
-          font-weight:500;
-          text-align:left;
+        .sl-logout {
+          width: 100%;
+          padding: 11px;
+          border-radius: 10px;
+          border: 1px solid rgba(229,62,62,0.15);
+          background: rgba(229,62,62,0.06);
+          color: #e53e3e;
+          font-size: 14px;
+          font-weight: 700;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          cursor: pointer;
+          transition: all 0.18s;
+          font-family: var(--font-outfit), sans-serif;
         }
-
-        .submenu a:hover{
-          color:#e53935;
+        .sl-logout:hover {
+          background: #e53e3e;
+          color: #fff;
+          border-color: #e53e3e;
+          box-shadow: 0 4px 14px rgba(229,62,62,0.25);
         }
-
-        /* PERFIL */
-        .sidebarBottom{
-          margin-top:20px;
-          border-top:1px solid #eee;
-          padding-top:16px;
+        .sl-main {
+          flex: 1;
+          overflow-y: auto;
+          padding: 32px 36px;
+          position: relative;
+          z-index: 1;
+          background: linear-gradient(rgba(248, 250, 252, 0.88), rgba(248, 250, 252, 0.88)), url('/corporate_background.png') no-repeat center center;
+          background-size: cover;
+          background-attachment: fixed;
         }
-
-        .perfil{
-          display:flex;
-          align-items:center;
-          gap:10px;
-          margin-bottom:14px;
-        }
-
-        .perfilInfo{
-          display:flex;
-          flex-direction:column;
-          align-items:flex-start;
-        }
-
-        .nombre{
-          font-size:15px;
-          font-weight:700;
-          color:#111;
-          margin:0;
-          text-align:left;
-        }
-
-        .cargo{
-          font-size:12px;
-          color:#777;
-          font-weight:600;
-          margin-top:2px;
-          text-align:left;
-        }
-
-        /* BOTON */
-        .logout{
-          width:100%;
-          border:none;
-          background:#222;
-          color:white;
-          padding:13px;
-          border-radius:10px;
-          display:flex;
-          align-items:center;
-          justify-content:center;
-          gap:8px;
-          cursor:pointer;
-          font-size:15px;
-          font-weight:600;
-          transition:.2s;
-        }
-
-        .logout:hover{
-          background:black;
-        }
-
-        /* MAIN */
-        .main{
-          flex:1;
-          padding:30px;
-          overflow:auto;
-        }
-
       `}</style>
 
     </div>
-
   );
-
 }

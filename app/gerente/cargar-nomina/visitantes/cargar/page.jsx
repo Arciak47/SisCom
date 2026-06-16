@@ -21,8 +21,8 @@ export default function CargarVisitantes() {
     "Numero de ficha",
     "Nombres",
     "Apellidos",
-    "Edad",
     "Cedula",
+    "Edad",
     "Supervisor"
   ];
 
@@ -52,11 +52,10 @@ export default function CargarVisitantes() {
 
   function validar(headers) {
     const requeridos = [
-      "Numero de ficha",
       "Nombres",
       "Apellidos",
-      "Edad",
       "Cedula",
+      "Edad",
       "Supervisor"
     ];
 
@@ -95,14 +94,17 @@ export default function CargarVisitantes() {
         return;
       }
 
-      const formatted = json.map((row) => ({
-        "Numero de ficha": limpiar(row["Numero de ficha"]),
-        "Nombres": capitalizar(limpiar(row["Nombres"])),
-        "Apellidos": capitalizar(limpiar(row["Apellidos"])),
-        "Edad": limpiar(row["Edad"]),
-        "Cedula": formatearCedula(row["Cedula"]),
-        "Supervisor": capitalizar(limpiar(row["Supervisor"]))
-      }));
+      const formatted = json.map((row) => {
+        const fullCedula = formatearCedula(row["Cedula"]);
+        return {
+          "Numero de ficha": fullCedula,
+          "Nombres": capitalizar(limpiar(row["Nombres"])),
+          "Apellidos": capitalizar(limpiar(row["Apellidos"])),
+          "Cedula": fullCedula,
+          "Edad": limpiar(row["Edad"]),
+          "Supervisor": capitalizar(limpiar(row["Supervisor"]))
+        };
+      });
 
       setData(formatted);
       setFileLoaded(true);

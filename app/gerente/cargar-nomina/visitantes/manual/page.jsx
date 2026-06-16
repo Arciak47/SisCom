@@ -14,7 +14,7 @@ export default function ManualVisitantes() {
     nombres: "",
     apellidos: "",
     cedula: "",
-    area: "",
+    edad: "",
     supervisor: ""
   });
 
@@ -29,12 +29,12 @@ export default function ManualVisitantes() {
 
     const { name, value } = e.target;
 
-    // SOLO NÚMEROS EN CÉDULA
-    if(name === "cedula"){
+    // SOLO NÚMEROS EN CÉDULA y EDAD
+    if(name === "cedula" || name === "edad"){
       const numeros = value.replace(/\D/g, "");
       setForm({
         ...form,
-        cedula: numeros
+        [name]: numeros
       });
       return;
     }
@@ -60,10 +60,11 @@ export default function ManualVisitantes() {
       }
 
       const nuevo = {
+        "Numero de ficha": `V-${form.cedula}`,
         "Nombres": capitalizar(form.nombres),
         "Apellidos": capitalizar(form.apellidos),
         "Cedula": `V-${form.cedula}`,
-        "Area": capitalizar(form.area),
+        "Edad": form.edad,
         "Supervisor": capitalizar(form.supervisor)
       };
 
@@ -113,9 +114,9 @@ export default function ManualVisitantes() {
         />
 
         <input
-          name="area"
-          placeholder="Área"
-          value={form.area}
+          name="edad"
+          placeholder="Edad"
+          value={form.edad}
           onChange={handleChange}
         />
 

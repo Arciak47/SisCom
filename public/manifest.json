@@ -1,0 +1,24 @@
+{
+  "name": "SisCOM - Sistema de Asistencia de Comedor",
+  "short_name": "SisCOM",
+  "description": "Sistema de asistencia de comedor de Planta INVECEM",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#dc2626",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/logo-invecem.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo-invecem-gerente.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

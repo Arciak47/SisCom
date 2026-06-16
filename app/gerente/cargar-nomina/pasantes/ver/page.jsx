@@ -17,9 +17,10 @@ export default function VerNominaPasantes() {
     "Numero de ficha",
     "Nombres",
     "Apellidos",
-    "Edad",
     "Cedula",
-    "Supervisor"
+    "Edad",
+    "Supervisor",
+    "Area Asignada"
   ];
 
   // 🔥 FUNCIÓN PARA ASEGURAR "V-"
