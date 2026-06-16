@@ -342,6 +342,9 @@ export default function SupervisorLayout({ children }) {
             background: #f1f5f9;
           }
           .sl-mobile-logo {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
             font-size: 22px;
             font-weight: 950;
             font-family: var(--font-rajdhani), sans-serif;
@@ -371,6 +374,7 @@ export default function SupervisorLayout({ children }) {
           .sl-main {
             padding: 20px 16px;
             height: calc(100vh - 60px);
+            overflow-x: hidden;
           }
         }
       `}</style>
