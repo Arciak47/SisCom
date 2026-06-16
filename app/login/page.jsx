@@ -17,7 +17,6 @@ export default function LoginPage() {
   const [cargando, setCargando] = useState(false);
   const [verClave, setVerClave] = useState(false);
   const [mostrarSimulador, setMostrarSimulador] = useState(false);
-  const [claveRecuperada, setClaveRecuperada] = useState("");
   const [correoEnviado, setCorreoEnviado] = useState("");
   const [montado, setMontado] = useState(false);
   const router = useRouter();
@@ -101,7 +100,7 @@ export default function LoginPage() {
         email = email.toLowerCase() + "@gmail.com";
       }
 
-      // Buscar en Firestore el usuario para obtener la contraseña en texto plano
+      // Buscar en Firestore el usuario
       const usuariosRef = collection(db, "usuarios");
       const q = query(usuariosRef, where("correo", "==", email.toLowerCase()));
       const querySnapshot = await getDocs(q);
@@ -112,27 +111,20 @@ export default function LoginPage() {
         return;
       }
 
-      let passwordRecuperada = "";
-      querySnapshot.forEach((docSnap) => {
-        const data = docSnap.data();
-        passwordRecuperada = data.clave || "No asignada";
-      });
+      // Enviar el enlace oficial de recuperación de Firebase
+      await sendPasswordResetEmail(auth, email.toLowerCase());
 
-      // Enviar el enlace oficial de recuperación de Firebase por si el correo es real
-      try {
-        await sendPasswordResetEmail(auth, email);
-      } catch (authErr) {
-        console.warn("Fallo el envío oficial por Firebase Auth:", authErr);
-      }
-
-      setClaveRecuperada(passwordRecuperada);
       setCorreoEnviado(email);
       setMostrarReset(false);
       setMostrarSimulador(true);
       setCorreoReset("");
     } catch (err) {
       console.error(err);
-      alert("❌ Error al procesar la recuperación de contraseña.");
+      if (err.code === "auth/user-not-found") {
+        alert("❌ El correo ingresado no está registrado en el servicio de autenticación.");
+      } else {
+        alert("❌ Error al procesar la recuperación de contraseña: " + err.message);
+      }
     }
     setCargandoReset(false);
   };
@@ -306,8 +298,8 @@ export default function LoginPage() {
             <div className="sim-header">
               <span className="sim-icon">📧</span>
               <div>
-                <h3 className="sim-title">Bandeja de Entrada</h3>
-                <p className="sim-badge">Simulador de Desarrollo</p>
+                <h3 className="sim-title">Enlace Enviado</h3>
+                <p className="sim-badge">Recuperación de Contraseña</p>
               </div>
             </div>
             
@@ -318,28 +310,20 @@ export default function LoginPage() {
               </div>
               <div className="sim-meta">
                 <span className="sim-meta-label">De:</span>
-                <span className="sim-meta-value font-mono text-rose-400">sistema-siscom@invecem.gob.ve</span>
+                <span className="sim-meta-value font-mono text-rose-400">noreply@siscom-54722.firebaseapp.com</span>
               </div>
               <div className="sim-subject">
                 <span className="sim-meta-label">Asunto:</span>
-                <span className="sim-meta-value font-bold">🔑 Credenciales de Acceso - SisCOM</span>
+                <span className="sim-meta-value font-bold">Restablecer contraseña de SisCOM</span>
               </div>
               <div className="sim-content">
                 <p>Estimado usuario,</p>
-                <p className="sim-content-text">Se ha procesado una solicitud de recuperación para tu cuenta de SisCOM. Tu contraseña de ingreso registrada en el sistema es:</p>
-                <div className="sim-password-box">
-                  <code className="sim-password">{claveRecuperada}</code>
-                  <button 
-                    onClick={() => {
-                      navigator.clipboard.writeText(claveRecuperada);
-                      alert("✅ Contraseña copiada al portapapeles");
-                    }}
-                    className="sim-copy-btn"
-                  >
-                    COPIAR
-                  </button>
-                </div>
-                <p className="sim-note">Por seguridad, te sugerimos cambiar esta clave una vez ingreses al sistema.</p>
+                <p className="sim-content-text" style={{ marginTop: "12px" }}>
+                  Hemos enviado un correo electrónico automático a su dirección registrada con las instrucciones oficiales de Firebase para restablecer su contraseña de forma segura.
+                </p>
+                <p className="sim-note" style={{ marginTop: "12px" }}>
+                  Por seguridad, revise su bandeja de entrada (incluyendo la carpeta de correo no deseado o Spam) y siga el enlace enviado para actualizar su clave.
+                </p>
               </div>
             </div>
 
