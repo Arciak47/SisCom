@@ -5,7 +5,7 @@ import { auth, db } from "../lib/firebase";
 import { signInWithEmailAndPassword, signOut, sendPasswordResetEmail } from "firebase/auth";
 import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, Sun, Moon } from "lucide-react";
 
 export default function LoginPage() {
   const [usuario, setUsuario] = useState("");
@@ -19,11 +19,33 @@ export default function LoginPage() {
   const [mostrarSimulador, setMostrarSimulador] = useState(false);
   const [correoEnviado, setCorreoEnviado] = useState("");
   const [montado, setMontado] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
     setMontado(true);
+    const savedTheme = localStorage.getItem("theme");
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    if (savedTheme === "dark" || (!savedTheme && prefersDark)) {
+      setIsDarkMode(true);
+      document.body.classList.add("dark-mode");
+    } else {
+      setIsDarkMode(false);
+      document.body.classList.remove("dark-mode");
+    }
   }, []);
+
+  const toggleTheme = () => {
+    if (isDarkMode) {
+      setIsDarkMode(false);
+      document.body.classList.remove("dark-mode");
+      localStorage.setItem("theme", "light");
+    } else {
+      setIsDarkMode(true);
+      document.body.classList.add("dark-mode");
+      localStorage.setItem("theme", "dark");
+    }
+  };
 
   // LOGIN
   const manejarLogin = async (e) => {
@@ -133,6 +155,11 @@ export default function LoginPage() {
 
   return (
     <div className="login-container">
+      {/* THEME TOGGLE */}
+      <button className="login-theme-toggle" onClick={toggleTheme} aria-label="Cambiar tema">
+        {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
+      </button>
+
       {/* GLOW DECORATIONS */}
       <div className="glow-1" />
       <div className="glow-2" />
@@ -339,6 +366,43 @@ export default function LoginPage() {
       )}
 
       <style jsx>{`
+        .login-theme-toggle {
+          position: absolute;
+          top: 24px;
+          right: 24px;
+          background: rgba(255, 255, 255, 0.75);
+          backdrop-filter: blur(10px);
+          -webkit-backdrop-filter: blur(10px);
+          border: 1px solid rgba(255, 255, 255, 0.95);
+          color: #1a202c;
+          width: 44px;
+          height: 44px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: all 0.2s;
+          box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+          z-index: 50;
+        }
+
+        .login-theme-toggle:hover {
+          transform: scale(1.08);
+          background: #ffffff;
+        }
+
+        body.dark-mode .login-theme-toggle {
+          background: rgba(30, 41, 59, 0.85);
+          border-color: rgba(255, 255, 255, 0.08);
+          color: #f8fafc;
+          box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        body.dark-mode .login-theme-toggle:hover {
+          background: #1e293b;
+        }
+
         .login-container {
           position: relative;
           min-height: 100vh;

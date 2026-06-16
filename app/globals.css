@@ -119,3 +119,203 @@ table {
     font-size: 12px;
   }
 }
+
+/* ── MODO OSCURO (GLOBAL) ───────────────── */
+body.dark-mode {
+  --bg-primary:     #0f172a;
+  --bg-secondary:   #1e293b;
+  --text-primary:   #f8fafc;
+  --text-secondary: #cbd5e1;
+  --text-muted:     #94a3b8;
+  --glass:          rgba(30, 41, 59, 0.75);
+  --glass-border:   rgba(255, 255, 255, 0.08);
+  --card-shadow:    0 10px 30px rgba(0, 0, 0, 0.25);
+  --sidebar-bg:     #1e293b;
+  --border-color:   rgba(255, 255, 255, 0.08);
+  --main-overlay:   rgba(15, 23, 42, 0.92);
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 40%, #0f172a 100%) !important;
+}
+
+body.dark-mode::before {
+  background:
+    radial-gradient(ellipse 80% 50% at 15% 10%, rgba(229, 62, 62, 0.12) 0%, transparent 55%),
+    radial-gradient(ellipse 60% 40% at 85% 90%, rgba(30, 41, 59, 0.6) 0%, transparent 55%),
+    radial-gradient(ellipse 50% 60% at 50% 50%, rgba(15, 23, 42, 0.8) 0%, transparent 70%) !important;
+}
+
+/* Tarjetas y Contenedores */
+body.dark-mode .welcome-banner,
+body.dark-mode .metric-card,
+body.dark-mode .report-option-card,
+body.dark-mode .pg-chart-section,
+body.dark-mode .chartBox,
+body.dark-mode .c-card,
+body.dark-mode .custom-card,
+body.dark-mode .card,
+body.dark-mode .card-body,
+body.dark-mode .registrar-section,
+body.dark-mode .nomina-seccion,
+body.dark-mode .statsGrid > div,
+body.dark-mode .grid > div,
+body.dark-mode .dashboard-card,
+body.dark-mode .quickFiltersRow,
+body.dark-mode .panel-central,
+body.dark-mode .nm-card,
+body.dark-mode .cu-card {
+  background: var(--glass) !important;
+  border-color: var(--glass-border) !important;
+  box-shadow: var(--card-shadow) !important;
+  color: var(--text-primary) !important;
+}
+
+body.dark-mode .welcome-title,
+body.dark-mode .metric-content h3,
+body.dark-mode .report-info h4,
+body.dark-mode .pg-chart-header h2,
+body.dark-mode .chartBox h3,
+body.dark-mode .section-title,
+body.dark-mode h1,
+body.dark-mode h2,
+body.dark-mode h3,
+body.dark-mode h4,
+body.dark-mode h5,
+body.dark-mode h6,
+body.dark-mode .card-title,
+body.dark-mode .info-label,
+body.dark-mode .info-value,
+body.dark-mode .detail-label,
+body.dark-mode .detail-value,
+body.dark-mode .text-title,
+body.dark-mode .nm-uname,
+body.dark-mode .cu-title {
+  color: var(--text-primary) !important;
+}
+
+body.dark-mode .welcome-subtitle,
+body.dark-mode .metric-content p,
+body.dark-mode .report-info p,
+body.dark-mode .pg-chart-header p,
+body.dark-mode .chartBox p,
+body.dark-mode p,
+body.dark-mode .text-muted,
+body.dark-mode span:not(.accent-red):not(.sl-com):not(.sl-sis):not(.supervisor-name):not(.sl-role-tag):not(.sl-uname):not(.sl-urole):not(.metric-icon-box):not(.report-icon-box):not(.eye-toggle-btn) {
+  color: var(--text-secondary) !important;
+}
+
+body.dark-mode .welcome-date {
+  background: var(--bg-secondary) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-primary) !important;
+}
+
+body.dark-mode .quickFilterBtn {
+  background: var(--bg-secondary) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-secondary) !important;
+}
+
+body.dark-mode .quickFilterBtn.active {
+  background: var(--red) !important;
+  color: #ffffff !important;
+  border-color: var(--red) !important;
+}
+
+/* Tablas */
+body.dark-mode table,
+body.dark-mode .table-responsive,
+body.dark-mode .table-wrapper {
+  background: transparent !important;
+}
+
+body.dark-mode th {
+  background: var(--bg-secondary) !important;
+  color: var(--text-primary) !important;
+  border-bottom: 2px solid var(--border-color) !important;
+}
+
+body.dark-mode td {
+  border-bottom: 1px solid var(--border-color) !important;
+  color: var(--text-secondary) !important;
+}
+
+body.dark-mode tr:hover {
+  background: rgba(255, 255, 255, 0.03) !important;
+}
+
+/* Inputs y Formularios */
+body.dark-mode input,
+body.dark-mode select,
+body.dark-mode textarea {
+  background: var(--bg-secondary) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-primary) !important;
+}
+
+body.dark-mode input:focus,
+body.dark-mode select:focus,
+body.dark-mode textarea:focus {
+  border-color: var(--red) !important;
+  box-shadow: 0 0 0 3px rgba(229, 62, 62, 0.2) !important;
+}
+
+body.dark-mode input::placeholder {
+  color: var(--text-muted) !important;
+}
+
+/* Chat */
+body.dark-mode .chatLayout,
+body.dark-mode .chatWindow,
+body.dark-mode .chatHeader,
+body.dark-mode .chatInputWrapper,
+body.dark-mode .chatUsersList,
+body.dark-mode .chatSidebar,
+body.dark-mode .chatContactItem,
+body.dark-mode .chatInputArea {
+  background: var(--sidebar-bg) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-primary) !important;
+}
+
+body.dark-mode .chatContactItem:hover,
+body.dark-mode .chatContactItem.active {
+  background: var(--bg-secondary) !important;
+}
+
+body.dark-mode .messageBubble {
+  background: var(--bg-secondary) !important;
+  color: var(--text-primary) !important;
+}
+
+body.dark-mode .messageBubble.me {
+  background: var(--red) !important;
+  color: #ffffff !important;
+}
+
+body.dark-mode .chatUserAvatar {
+  background: var(--bg-secondary) !important;
+}
+
+/* Modales */
+body.dark-mode .modal-overlay,
+body.dark-mode .modal-backdrop {
+  background: rgba(15, 23, 42, 0.7) !important;
+  backdrop-filter: blur(8px) !important;
+}
+
+body.dark-mode .modal-card,
+body.dark-mode .modal-content,
+body.dark-mode .modalBody,
+body.dark-mode .custom-modal,
+body.dark-mode .sim-card {
+  background: var(--sidebar-bg) !important;
+  border: 1px solid var(--border-color) !important;
+  box-shadow: var(--card-shadow) !important;
+  color: var(--text-primary) !important;
+}
+
+body.dark-mode .modal-title,
+body.dark-mode .modal-desc,
+body.dark-mode .sim-title,
+body.dark-mode .sim-content {
+  color: var(--text-primary) !important;
+}

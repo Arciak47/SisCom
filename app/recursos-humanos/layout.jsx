@@ -9,7 +9,7 @@ import { doc, getDoc } from "firebase/firestore";
 import {
   Home, Calendar, MessageSquare, FileText,
   BarChart3, PieChart, ChevronDown, ChevronRight,
-  LogOut, UserCircle2
+  LogOut, UserCircle2, Sun, Moon
 } from "lucide-react";
 
 export default function LayoutRRHH({ children }) {
@@ -18,6 +18,31 @@ export default function LayoutRRHH({ children }) {
   const [nombreUsuario, setNombreUsuario] = useState("Cargando...");
   const [authorized, setAuthorized] = useState(false);
   const [menuAbierto, setMenuAbierto] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem("theme");
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    if (savedTheme === "dark" || (!savedTheme && prefersDark)) {
+      setIsDarkMode(true);
+      document.body.classList.add("dark-mode");
+    } else {
+      setIsDarkMode(false);
+      document.body.classList.remove("dark-mode");
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    if (isDarkMode) {
+      setIsDarkMode(false);
+      document.body.classList.remove("dark-mode");
+      localStorage.setItem("theme", "light");
+    } else {
+      setIsDarkMode(true);
+      document.body.classList.add("dark-mode");
+      localStorage.setItem("theme", "dark");
+    }
+  };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -71,7 +96,9 @@ export default function LayoutRRHH({ children }) {
         <div className="sl-mobile-logo">
           <span className="sl-sis">Sis</span><span className="sl-com">COM</span>
         </div>
-        <div style={{ width: 24 }} />
+        <button className="sl-mobile-theme-toggle" onClick={toggleTheme} aria-label="Cambiar tema">
+          {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
+        </button>
       </header>
 
       {/* Backdrop for mobile */}
@@ -128,6 +155,10 @@ export default function LayoutRRHH({ children }) {
               <span className="sl-urole">Recursos Humanos</span>
             </div>
           </div>
+          <button className="sl-theme-toggle" onClick={toggleTheme} aria-label="Cambiar tema">
+            {isDarkMode ? <Sun size={15} /> : <Moon size={15} />}
+            <span>{isDarkMode ? "Modo Claro" : "Modo Oscuro"}</span>
+          </button>
           <button className="sl-logout" onClick={cerrarSesion}>
             <LogOut size={16}/><span>Cerrar Sesión</span>
           </button>
@@ -149,8 +180,8 @@ export default function LayoutRRHH({ children }) {
         .sl-sidebar {
           width: 255px;
           flex-shrink: 0;
-          background: #ffffff;
-          border-right: 1px solid #e8edf5;
+          background: var(--sidebar-bg);
+          border-right: 1px solid var(--border-color);
           display: flex;
           flex-direction: column;
           justify-content: space-between;
@@ -169,7 +200,7 @@ export default function LayoutRRHH({ children }) {
           flex-direction: column;
           align-items: center;
           padding-bottom: 20px;
-          border-bottom: 1px solid #f1f5f9;
+          border-bottom: 1px solid var(--border-color);
           gap: 4px;
         }
         .sl-brand {
@@ -179,7 +210,7 @@ export default function LayoutRRHH({ children }) {
           font-family: var(--font-rajdhani), sans-serif;
           margin: 2px 0 0;
         }
-        .sl-sis { color: #1a202c; }
+        .sl-sis { color: var(--text-primary); }
         .sl-com { color: #e53e3e; }
         .sl-role-tag {
           font-size: 9px;
@@ -222,7 +253,7 @@ export default function LayoutRRHH({ children }) {
         .sl-sub {
           margin-left: 30px;
           padding-left: 14px;
-          border-left: 2px solid #f1f5f9;
+          border-left: 2px solid var(--border-color);
           display: flex;
           flex-direction: column;
           gap: 2px;
@@ -246,7 +277,7 @@ export default function LayoutRRHH({ children }) {
         }
         .sl-bottom {
           padding: 16px;
-          border-top: 1px solid #f1f5f9;
+          border-top: 1px solid var(--border-color);
           display: flex;
           flex-direction: column;
           gap: 10px;
@@ -256,14 +287,14 @@ export default function LayoutRRHH({ children }) {
           align-items: center;
           gap: 10px;
           padding: 10px 12px;
-          background: #f8fafc;
+          background: var(--bg-secondary);
           border-radius: 10px;
-          border: 1px solid #e8edf5;
+          border: 1px solid var(--border-color);
         }
         .sl-uname {
           font-size: 13px;
           font-weight: 700;
-          color: #1a202c;
+          color: var(--text-primary);
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
@@ -275,6 +306,28 @@ export default function LayoutRRHH({ children }) {
           font-weight: 700;
           text-transform: uppercase;
           letter-spacing: 0.5px;
+        }
+        .sl-theme-toggle {
+          width: 100%;
+          padding: 11px;
+          border-radius: 10px;
+          border: 1px solid var(--border-color);
+          background: var(--bg-secondary);
+          color: var(--text-secondary);
+          font-size: 14px;
+          font-weight: 700;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          cursor: pointer;
+          transition: all 0.18s;
+          font-family: var(--font-outfit), sans-serif;
+          margin-bottom: 4px;
+        }
+        .sl-theme-toggle:hover {
+          background: var(--border-color);
+          color: var(--text-primary);
         }
         .sl-logout {
           width: 100%;
@@ -305,13 +358,16 @@ export default function LayoutRRHH({ children }) {
           padding: 32px 36px;
           position: relative;
           z-index: 1;
-          background: linear-gradient(rgba(248, 250, 252, 0.88), rgba(248, 250, 252, 0.88)), url('/corporate_background.png') no-repeat center center;
+          background: linear-gradient(var(--main-overlay, rgba(248, 250, 252, 0.88)), var(--main-overlay, rgba(248, 250, 252, 0.88))), url('/corporate_background.png') no-repeat center center;
           background-size: cover;
           background-attachment: fixed;
         }
 
         /* Responsive Layout classes */
         .sl-mobile-header {
+          display: none;
+        }
+        .sl-mobile-theme-toggle {
           display: none;
         }
         .sl-backdrop {
@@ -327,8 +383,8 @@ export default function LayoutRRHH({ children }) {
             align-items: center;
             justify-content: space-between;
             height: 60px;
-            background: #ffffff;
-            border-bottom: 1px solid #e8edf5;
+            background: var(--sidebar-bg);
+            border-bottom: 1px solid var(--border-color);
             padding: 0 16px;
             position: sticky;
             top: 0;
@@ -338,7 +394,7 @@ export default function LayoutRRHH({ children }) {
           .sl-menu-toggle {
             background: none;
             border: none;
-            color: #1a202c;
+            color: var(--text-primary);
             cursor: pointer;
             padding: 6px;
             display: flex;
@@ -347,7 +403,24 @@ export default function LayoutRRHH({ children }) {
             border-radius: 8px;
           }
           .sl-menu-toggle:hover {
-            background: #f1f5f9;
+            background: var(--bg-secondary);
+          }
+          .sl-mobile-theme-toggle {
+            background: none;
+            border: none;
+            color: var(--text-primary);
+            cursor: pointer;
+            padding: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            width: 32px;
+            height: 32px;
+            z-index: 10;
+          }
+          .sl-mobile-theme-toggle:hover {
+            background: var(--bg-secondary);
           }
           .sl-mobile-logo {
             position: absolute;
