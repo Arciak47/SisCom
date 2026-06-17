@@ -6,7 +6,7 @@ import { useState, useEffect } from "react";
 
 import { signOut, onAuthStateChanged } from "firebase/auth";
 import { auth, db } from "../lib/firebase";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, collection, query, where, onSnapshot } from "firebase/firestore";
 
 import {
   Home, ClipboardCheck, FileText,
@@ -21,6 +21,72 @@ export default function SupervisorLayout({ children }) {
   const [authorized, setAuthorized] = useState(false);
   const [menuAbierto, setMenuAbierto] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
+
+  const [mensajesSinLeer, setMensajesSinLeer] = useState(0);
+  const [toast, setToast] = useState(null);
+
+  const playNotificationSound = () => {
+    try {
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextClass) return;
+      const ctx = new AudioContextClass();
+      const playBeep = (freq, startTime, duration) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(freq, startTime);
+        gain.gain.setValueAtTime(0.1, startTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(startTime);
+        osc.stop(startTime + duration);
+      };
+      const now = ctx.currentTime;
+      playBeep(587.33, now, 0.15);
+      playBeep(880.00, now + 0.18, 0.2);
+    } catch (e) {
+      console.error("Error playing audio notification:", e);
+    }
+  };
+
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => {
+        setToast(null);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    if (!authorized || !auth.currentUser) return;
+    const user = auth.currentUser;
+    const q = query(
+      collection(db, "mensajes"),
+      where("receptorId", "==", user.uid),
+      where("leido", "==", false)
+    );
+    let isFirstLoad = true;
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const count = snapshot.size;
+      setMensajesSinLeer(count);
+      if (isFirstLoad) {
+        isFirstLoad = false;
+        return;
+      }
+      snapshot.docChanges().forEach((change) => {
+        if (change.type === "added") {
+          const msgData = change.doc.data();
+          if (!window.location.pathname.endsWith("/chat")) {
+            setToast(msgData);
+            playNotificationSound();
+          }
+        }
+      });
+    });
+    return () => unsubscribe();
+  }, [authorized]);
 
   useEffect(() => {
     const savedTheme = localStorage.getItem("theme");
@@ -85,6 +151,27 @@ export default function SupervisorLayout({ children }) {
 
   return (
     <div className="sl-layout">
+      {toast && (
+        <div className="sl-toast" onClick={() => {
+          const role = window.location.pathname.split('/')[1] || "supervisor";
+          router.push(`/${role}/chat`);
+          setToast(null);
+        }}>
+          <div className="sl-toast-icon">
+            <MessageSquare size={20} color="#fff" />
+          </div>
+          <div className="sl-toast-content">
+            <h4 className="sl-toast-title">Nuevo mensaje de {toast.emisorNombre}</h4>
+            <p className="sl-toast-desc">{toast.mensaje || "Archivo adjunto"}</p>
+          </div>
+          <button className="sl-toast-close" onClick={(e) => {
+            e.stopPropagation();
+            setToast(null);
+          }}>
+            &times;
+          </button>
+        </div>
+      )}
 
       {/* Mobile Topbar */}
       <header className="sl-mobile-header">
@@ -128,8 +215,12 @@ export default function SupervisorLayout({ children }) {
               <ClipboardCheck size={18}/><span>Registrar Asistencia</span>
             </a>
 
-            <a className="sl-item" onClick={() => { router.push("/supervisor/chat"); setMenuAbierto(false); }}>
-              <MessageSquare size={18}/><span>Mensajería</span>
+             <a className="sl-item" onClick={() => { router.push("/supervisor/chat"); setMenuAbierto(false); }}>
+              <MessageSquare size={18}/>
+              <span>Mensajería</span>
+              {mensajesSinLeer > 0 && (
+                <span className="unread-badge">{mensajesSinLeer}</span>
+              )}
             </a>
 
             <a className="sl-item" onClick={() => { router.push("/supervisor/perfil"); setMenuAbierto(false); }}>
@@ -448,6 +539,100 @@ export default function SupervisorLayout({ children }) {
             padding: 20px 16px;
             height: calc(100vh - 60px);
             overflow-x: hidden;
+          }
+        }
+
+        .unread-badge {
+          background-color: #e53e3e;
+          color: #ffffff;
+          font-size: 11px;
+          font-weight: 700;
+          padding: 2px 6px;
+          border-radius: 9999px;
+          min-width: 18px;
+          height: 18px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin-left: auto;
+          box-shadow: 0 2px 5px rgba(229, 62, 62, 0.3);
+        }
+
+        .sl-toast {
+          position: fixed;
+          top: 24px;
+          right: 24px;
+          z-index: 9999;
+          background: var(--sidebar-bg);
+          border: 1px solid var(--border-color);
+          box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+          border-radius: 12px;
+          padding: 16px;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          width: 320px;
+          cursor: pointer;
+          animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+          transition: all 0.2s ease;
+          backdrop-filter: blur(8px);
+        }
+        .sl-toast:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 12px 30px -5px rgba(0, 0, 0, 0.15), 0 10px 12px -6px rgba(0, 0, 0, 0.15);
+        }
+        .sl-toast-icon {
+          background: #e53e3e;
+          border-radius: 50%;
+          width: 36px;
+          height: 36px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        }
+        .sl-toast-content {
+          flex: 1;
+          min-width: 0;
+        }
+        .sl-toast-title {
+          font-size: 13px;
+          font-weight: 700;
+          color: var(--text-primary);
+          margin: 0 0 2px 0;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .sl-toast-desc {
+          font-size: 12px;
+          color: var(--text-secondary);
+          margin: 0;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .sl-toast-close {
+          background: none;
+          border: none;
+          color: var(--text-secondary);
+          font-size: 20px;
+          cursor: pointer;
+          padding: 0 4px;
+          line-height: 1;
+        }
+        .sl-toast-close:hover {
+          color: var(--text-primary);
+        }
+
+        @keyframes slideIn {
+          from {
+            transform: translateX(120%);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
           }
         }
       `}</style>
