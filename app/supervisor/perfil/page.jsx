@@ -503,8 +503,6 @@ export default function PerfilSupervisor() {
 
 </div>
 
-</div>
-
 <style jsx>{`
 
   .main{

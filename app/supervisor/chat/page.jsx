@@ -315,8 +315,7 @@ export default function SupervisorChat() {
                   </div>
                 </div>
               );
-            }
-            ))
+            })
           )}
         </div>
       </aside>
