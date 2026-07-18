@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Upload, ArrowLeft, FileSpreadsheet } from "lucide-react";
 import * as XLSX from "xlsx";
+import { checkDuplicateFichasInDB, normalizeHeader, findHeaderRowIndex, formatCategoryName, validarNombreArchivo, registrarAuditoria } from "../../../../lib/validationHelpers";
 import { db } from "../../../../lib/firebase";
 import { doc, setDoc } from "firebase/firestore";
 
@@ -51,61 +52,150 @@ export default function CargarInces() {
   }
 
   function validar(headers) {
-    const requeridos = [
-      "Numero de ficha",
-      "Nombres",
-      "Apellidos",
-      "Edad",
-      "Cedula",
-      "Supervisor"
-    ];
-
-    const normal = headers.map(h => h?.toString().toLowerCase());
-
-    return requeridos.every(h =>
-      normal.includes(h.toLowerCase())
-    );
+    const normal = headers.map(h => normalizeHeader(h));
+    const requeridos = ["nombres", "apellidos", "cedula"];
+    return requeridos.every(h => normal.includes(h));
   }
 
   function handleFile(e) {
-
     const file = e.target.files[0];
     if (!file) return;
 
+    if (!validarNombreArchivo(file.name, "inces")) {
+      setErrorFormato(`❌ El archivo '${file.name}' no corresponde a la categoría de Estudiantes INCES.`);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
     setFileName(file.name);
     setErrorFormato("");
+    setData([]);
+    setFileLoaded(false);
 
     const reader = new FileReader();
 
-    reader.onload = (evt) => {
+    reader.onload = async (evt) => {
+      try {
+        const workbook = XLSX.read(evt.target.result, { type: "binary" });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
 
-      const workbook = XLSX.read(evt.target.result, { type: "binary" });
-      const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      const json = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+        if (rows.length === 0) {
+          setErrorFormato("❌ Archivo vacío");
+          return;
+        }
 
-      if (json.length === 0) {
-        setErrorFormato("❌ Archivo vacío");
-        return;
+        const headerIndex = findHeaderRowIndex(rows);
+        if (headerIndex === -1) {
+          setErrorFormato("❌ No se encontraron las cabeceras válidas en el archivo");
+          return;
+        }
+
+        const headers = rows[headerIndex];
+        if (!validar(headers)) {
+          setErrorFormato("❌ Formato incorrecto (verifica las columnas de la plantilla)");
+          return;
+        }
+
+        const dataRows = rows.slice(headerIndex + 1);
+        
+        const getHeaderIdx = (name) => {
+          const target = normalizeHeader(name);
+          return headers.findIndex(h => {
+            const normH = normalizeHeader(h);
+            if (target === "numero de ficha" && normH === "ficha") return true;
+            return normH === target;
+          });
+        };
+
+        const fichaIdx = getHeaderIdx("numero de ficha");
+        const nombresIdx = getHeaderIdx("nombres");
+        const apellidosIdx = getHeaderIdx("apellidos");
+        const cedulaIdx = getHeaderIdx("cedula");
+        const edadIdx = getHeaderIdx("edad");
+        const supervisorIdx = getHeaderIdx("supervisor");
+
+        let internalFichas = new Set();
+        let internalCedulas = new Set();
+        let duplicateFichasInFile = new Set();
+        let duplicateCedulasInFile = new Set();
+        const formatted = [];
+
+        for (let i = 0; i < dataRows.length; i++) {
+          const row = dataRows[i];
+          if (!row || row.length === 0) continue;
+
+          const getValue = (idx) => idx !== -1 && row[idx] !== undefined && row[idx] !== null ? limpiar(row[idx]) : "";
+
+          const rawCedula = getValue(cedulaIdx);
+          const cleanCed = rawCedula.replace(/^V-/i, "").replace(/\D/g, "");
+          const formattedCedula = cleanCed ? `V-${cleanCed}` : "";
+
+          if (!rawCedula && !getValue(nombresIdx)) continue; // Skip empty rows
+
+          let ficha = getValue(fichaIdx);
+          const nombres = capitalizar(getValue(nombresIdx));
+          const apellidos = capitalizar(getValue(apellidosIdx));
+          const edad = getValue(edadIdx) || "-";
+          const supervisor = capitalizar(getValue(supervisorIdx)) || "-";
+
+          if (ficha && internalFichas.has(ficha)) {
+            const existing = formatted.find(item => item["Numero de ficha"] === ficha);
+            if (existing && existing["Cedula"] === formattedCedula) {
+              // Exact duplicate row (same person & card), skip it silently
+              continue;
+            } else {
+              duplicateFichasInFile.add(ficha);
+            }
+          }
+
+          if (formattedCedula && internalCedulas.has(formattedCedula)) {
+            const existing = formatted.find(item => item["Cedula"] === formattedCedula);
+            if (existing && existing["Numero de ficha"] === ficha) {
+              // Exact duplicate row (same person & card), skip it silently
+              continue;
+            } else {
+              duplicateCedulasInFile.add(formattedCedula);
+            }
+          }
+
+          if (ficha) internalFichas.add(ficha);
+          if (formattedCedula) internalCedulas.add(formattedCedula);
+
+          formatted.push({
+            "Numero de ficha": ficha,
+            "Nombres": nombres,
+            "Apellidos": apellidos,
+            "Cedula": formattedCedula,
+            "Edad": edad,
+            "Supervisor": supervisor
+          });
+        }
+
+        if (duplicateFichasInFile.size > 0) {
+          setErrorFormato(`❌ El archivo contiene números de ficha duplicados: ${Array.from(duplicateFichasInFile).join(", ")}`);
+          return;
+        }
+
+        if (duplicateCedulasInFile.size > 0) {
+          setErrorFormato(`❌ El archivo contiene cédulas duplicadas: ${Array.from(duplicateCedulasInFile).join(", ")}`);
+          return;
+        }
+
+        // Validate duplicates against DB (other categories)
+        const dbConflicts = await checkDuplicateFichasInDB(Array.from(internalFichas), "inces");
+        if (dbConflicts.length > 0) {
+          const conflictMsgs = dbConflicts.map(c => `Ficha ${c.ficha} (ya existe en ${formatCategoryName(c.category)})`);
+          setErrorFormato(`❌ Conflicto de fichas con la base de datos:\n${conflictMsgs.join("\n")}`);
+          return;
+        }
+
+        setData(formatted);
+        setFileLoaded(true);
+      } catch (err) {
+        console.error(err);
+        setErrorFormato("❌ Error al procesar: " + err.message);
       }
-
-      const headers = Object.keys(json[0]);
-
-      if (!validar(headers)) {
-        setErrorFormato("❌ Formato incorrecto (usa la plantilla)");
-        return;
-      }
-
-      const formatted = json.map((row) => ({
-        "Numero de ficha": limpiar(row["Numero de ficha"]),
-        "Nombres": capitalizar(limpiar(row["Nombres"])),
-        "Apellidos": capitalizar(limpiar(row["Apellidos"])),
-        "Edad": limpiar(row["Edad"]),
-        "Cedula": formatearCedula(row["Cedula"]), // 🔥 AQUÍ SE ARREGLA
-        "Supervisor": capitalizar(limpiar(row["Supervisor"]))
-      }));
-
-      setData(formatted);
-      setFileLoaded(true);
     };
 
     reader.readAsBinaryString(file);
@@ -118,11 +208,20 @@ export default function CargarInces() {
       return;
     }
 
+    const ok = confirm("⚠️ ¿Está seguro de que desea reemplazar toda la nómina actual de Estudiantes INCES? Esta acción no se puede deshacer y borrará los registros anteriores.");
+    if (!ok) return;
+
     try {
 
       await setDoc(doc(db, "nominas", "inces"), {
         datos: data
       });
+
+      // Log Audit Trail
+      await registrarAuditoria(
+        "Importación de Nómina",
+        `Se importo y reemplazo la nomina de Estudiantes INCES vía Excel (total registros: ${data.length}).`
+      );
 
       alert("✅ Nómina INCES guardada");
 
@@ -154,7 +253,7 @@ export default function CargarInces() {
         </p>
 
         {errorFormato && (
-          <p className="error">{errorFormato}</p>
+          <p className="error" style={{ whiteSpace: "pre-line" }}>{errorFormato}</p>
         )}
 
         <div

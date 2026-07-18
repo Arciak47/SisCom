@@ -404,3 +404,453 @@ body.dark-mode .volverBtn {
 body.dark-mode .volverBtn:hover {
   background: var(--border-color) !important;
 }
+
+/* ── CHAT DARK MODE ───────────────── */
+body.dark-mode .chatLayout {
+  background: var(--bg-primary) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4) !important;
+}
+
+body.dark-mode .sidebarChat {
+  background: var(--bg-secondary) !important;
+  border-color: var(--border-color) !important;
+}
+
+body.dark-mode .headerSidebar {
+  border-color: var(--border-color) !important;
+}
+
+body.dark-mode .headerSidebar h2 {
+  color: var(--text-primary) !important;
+}
+
+body.dark-mode .searchBox {
+  background: var(--bg-primary) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-muted) !important;
+}
+
+body.dark-mode .searchBox input {
+  color: var(--text-primary) !important;
+}
+
+body.dark-mode .userItem:hover {
+  background: rgba(255, 255, 255, 0.05) !important;
+}
+
+body.dark-mode .userItem.active {
+  background: rgba(220, 38, 38, 0.15) !important;
+}
+
+body.dark-mode .avatar {
+  background: var(--bg-primary) !important;
+  color: var(--text-muted) !important;
+}
+
+body.dark-mode .userItem.active .avatar {
+  background: #dc2626 !important;
+  color: white !important;
+}
+
+body.dark-mode .userInfo h4 {
+  color: var(--text-primary) !important;
+}
+
+body.dark-mode .chatWindow {
+  background: var(--bg-primary) !important;
+}
+
+body.dark-mode .chatHeader {
+  border-color: var(--border-color) !important;
+  background: var(--bg-secondary) !important;
+}
+
+body.dark-mode .chatHeader h3 {
+  color: var(--text-primary) !important;
+}
+
+body.dark-mode .chatUserAvatar {
+  background: rgba(220, 38, 38, 0.15) !important;
+}
+
+body.dark-mode .chatMessages {
+  background: var(--bg-primary) !important;
+}
+
+body.dark-mode .theirs .messageBubble {
+  background: var(--bg-secondary) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-color) !important;
+}
+
+body.dark-mode .mine .messageBubble {
+  background: #dc2626 !important;
+  color: #ffffff !important;
+}
+
+body.dark-mode .theirs .msgTime {
+  color: var(--text-muted) !important;
+}
+
+body.dark-mode .senderAvatar {
+  background: var(--bg-secondary) !important;
+  color: var(--text-muted) !important;
+}
+
+body.dark-mode .senderTheirs {
+  color: #60a5fa !important;
+}
+
+body.dark-mode .unreadBadge {
+  border-color: var(--bg-secondary) !important;
+}
+
+body.dark-mode .lastMsgPreview {
+  color: var(--text-muted) !important;
+}
+
+body.dark-mode .userItem.hasUnread .lastMsgPreview {
+  color: var(--text-primary) !important;
+}
+
+body.dark-mode .chatInputWrapper {
+  border-color: var(--border-color) !important;
+  background: var(--bg-secondary) !important;
+}
+
+body.dark-mode .chatInputArea {
+  background: transparent !important;
+}
+
+body.dark-mode .chatInputArea input {
+  background: var(--bg-primary) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-primary) !important;
+}
+
+body.dark-mode .clipBtn {
+  background: var(--bg-primary) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-muted) !important;
+}
+
+body.dark-mode .clipBtn:hover {
+  background: rgba(255, 255, 255, 0.05) !important;
+  color: var(--text-primary) !important;
+}
+
+body.dark-mode .emptyChatState {
+  background: var(--bg-primary) !important;
+  color: var(--text-muted) !important;
+}
+
+body.dark-mode .emptyChatState h3 {
+  color: var(--text-primary) !important;
+}
+
+body.dark-mode .noMessages {
+  color: var(--text-muted) !important;
+}
+
+body.dark-mode .subiendoIndicator {
+  background: rgba(217, 119, 6, 0.1) !important;
+  border-color: rgba(217, 119, 6, 0.2) !important;
+}
+
+/* ── REPORTES / ESTADÍSTICAS DARK MODE ───────────────── */
+body.dark-mode .container {
+  color: var(--text-primary) !important;
+}
+
+body.dark-mode .topBar {
+  color: var(--text-primary) !important;
+}
+
+body.dark-mode .topBar h1 {
+  color: var(--text-primary) !important;
+}
+
+body.dark-mode .filterCard {
+  background: var(--glass) !important;
+  border: 1px solid var(--glass-border) !important;
+  box-shadow: var(--card-shadow) !important;
+}
+
+body.dark-mode .filterGroup label {
+  color: var(--text-secondary) !important;
+}
+
+body.dark-mode .inputWithIcon {
+  background: var(--bg-secondary) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-primary) !important;
+}
+
+body.dark-mode .inputWithIcon input,
+body.dark-mode .inputWithIcon select {
+  color: var(--text-primary) !important;
+}
+
+body.dark-mode .downloadsRow {
+  gap: 10px;
+}
+
+body.dark-mode .downloadBtn {
+  border-color: var(--border-color) !important;
+  color: var(--text-primary) !important;
+}
+
+body.dark-mode .statCard {
+  background: var(--glass) !important;
+  border: 1px solid var(--glass-border) !important;
+  box-shadow: var(--card-shadow) !important;
+}
+
+body.dark-mode .statCard h3,
+body.dark-mode .statCard p {
+  color: var(--text-primary) !important;
+}
+
+body.dark-mode .emptyState {
+  color: var(--text-muted) !important;
+}
+
+body.dark-mode .emptyState h3 {
+  color: var(--text-primary) !important;
+}
+
+body.dark-mode .loading {
+  color: var(--text-muted) !important;
+}
+
+/* ── AUDITORÍA DARK MODE ───────────────── */
+body.dark-mode .au-wrap {
+  color: var(--text-primary) !important;
+}
+
+body.dark-mode .au-title {
+  color: var(--text-primary) !important;
+}
+
+body.dark-mode .au-sub {
+  color: var(--text-secondary) !important;
+}
+
+body.dark-mode .au-filters-card {
+  background: var(--glass) !important;
+  border: 1px solid var(--glass-border) !important;
+  box-shadow: var(--card-shadow) !important;
+}
+
+body.dark-mode .au-search-box input {
+  background: var(--bg-secondary) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-primary) !important;
+}
+
+body.dark-mode .au-search-box {
+  color: var(--text-muted) !important;
+}
+
+body.dark-mode .au-btn-exp {
+  border-color: var(--border-color) !important;
+}
+
+body.dark-mode .au-back-btn {
+  background: var(--bg-secondary) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-color) !important;
+}
+
+body.dark-mode .au-stat-card {
+  background: var(--glass) !important;
+  border: 1px solid var(--glass-border) !important;
+}
+
+body.dark-mode .au-table-card {
+  background: var(--glass) !important;
+  border: 1px solid var(--glass-border) !important;
+  box-shadow: var(--card-shadow) !important;
+}
+
+body.dark-mode .au-action-tag {
+  background: rgba(220, 38, 38, 0.1) !important;
+  color: #fca5a5 !important;
+}
+
+/* ── NÓMINA GERENTE DARK MODE ───────────────── */
+body.dark-mode .nm-wrapper,
+body.dark-mode .nm-container {
+  color: var(--text-primary) !important;
+}
+
+body.dark-mode .nm-title-row h1 {
+  color: var(--text-primary) !important;
+}
+
+body.dark-mode .nm-sub {
+  color: var(--text-secondary) !important;
+}
+
+body.dark-mode .nm-cat-btn {
+  background: var(--bg-secondary) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-secondary) !important;
+}
+
+body.dark-mode .nm-cat-btn.active {
+  background: #dc2626 !important;
+  color: white !important;
+  border-color: #dc2626 !important;
+}
+
+body.dark-mode .nm-search-row input {
+  background: var(--bg-secondary) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-primary) !important;
+}
+
+body.dark-mode .nm-clear-btn {
+  color: var(--text-muted) !important;
+}
+
+body.dark-mode .nm-table-wrapper {
+  background: var(--glass) !important;
+  border: 1px solid var(--glass-border) !important;
+  box-shadow: var(--card-shadow) !important;
+}
+
+body.dark-mode .nm-status-msg {
+  color: var(--text-muted) !important;
+}
+
+body.dark-mode .nm-btn-exp {
+  border-color: var(--border-color) !important;
+}
+
+body.dark-mode .nm-back-btn {
+  background: var(--bg-secondary) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-color) !important;
+}
+
+/* ── CARGAR NOMINA / EDITAR DARK MODE ───────────────── */
+body.dark-mode .pageWrap,
+body.dark-mode .wrap,
+body.dark-mode .editWrap,
+body.dark-mode .uploadWrap {
+  color: var(--text-primary) !important;
+}
+
+body.dark-mode .topCard,
+body.dark-mode .uploadCard,
+body.dark-mode .formCard,
+body.dark-mode .tableCard,
+body.dark-mode .editCard {
+  background: var(--glass) !important;
+  border: 1px solid var(--glass-border) !important;
+  box-shadow: var(--card-shadow) !important;
+  color: var(--text-primary) !important;
+}
+
+body.dark-mode .actionBtn {
+  background: var(--bg-secondary) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-primary) !important;
+}
+
+body.dark-mode .actionBtn:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+body.dark-mode .exportBtn {
+  border-color: var(--border-color) !important;
+}
+
+body.dark-mode .excelInstructionTip {
+  background: rgba(30, 41, 59, 0.8) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-secondary) !important;
+}
+
+/* ── BOTONES Y PAGINACIÓN GLOBAL DARK MODE ───────────────── */
+body.dark-mode .paginationRow,
+body.dark-mode .nm-pagination {
+  color: var(--text-secondary) !important;
+}
+
+body.dark-mode .paginationRow button,
+body.dark-mode .nm-pagination button,
+body.dark-mode .pageBtn {
+  background: var(--bg-secondary) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-primary) !important;
+}
+
+body.dark-mode .paginationRow button:hover,
+body.dark-mode .nm-pagination button:hover,
+body.dark-mode .pageBtn:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+body.dark-mode .paginationRow button:disabled,
+body.dark-mode .nm-pagination button:disabled {
+  opacity: 0.4 !important;
+}
+
+/* ── SCROLLBAR DARK MODE ───────────────── */
+body.dark-mode ::-webkit-scrollbar {
+  width: 8px;
+}
+
+body.dark-mode ::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+
+body.dark-mode ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+body.dark-mode ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* ── COMIDA SELECT & FILTERS DARK MODE ───────────────── */
+body.dark-mode .comidaSelect {
+  background: var(--bg-secondary) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-primary) !important;
+}
+
+body.dark-mode .noDataMsg {
+  color: var(--text-muted) !important;
+}
+
+body.dark-mode .tableContainer {
+  background: var(--glass) !important;
+  border: 1px solid var(--glass-border) !important;
+  box-shadow: var(--card-shadow) !important;
+}
+
+body.dark-mode .registroCard {
+  background: var(--glass) !important;
+  border: 1px solid var(--glass-border) !important;
+  box-shadow: var(--card-shadow) !important;
+  color: var(--text-primary) !important;
+}
+
+body.dark-mode .fichaInput {
+  background: var(--bg-secondary) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-primary) !important;
+}
+
+/* ── FILE ATTACHMENT DARK MODE ───────────────── */
+body.dark-mode .theirs .fileAttachment {
+  background: rgba(255, 255, 255, 0.05) !important;
+}
+
+body.dark-mode .theirs .downloadLink {
+  color: #f87171 !important;
+}

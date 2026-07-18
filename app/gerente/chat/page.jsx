@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { registrarAuditoria } from "../../lib/validationHelpers";
 import { auth, db, storage } from "../../lib/firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { 
@@ -38,6 +39,7 @@ export default function GerenteChat() {
   const [currentUser, setCurrentUser] = useState(null);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [busqueda, setBusqueda] = useState("");
+  const [unreadData, setUnreadData] = useState({});
 
   const chatEndRef = useRef(null);
 
@@ -73,6 +75,37 @@ export default function GerenteChat() {
       setLoadingUsers(false);
     }
     fetchAllUsers();
+  }, [currentUser]);
+
+  // 2.5 Listen to all unread messages for the current user (real-time)
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const q = query(
+      collection(db, "mensajes"),
+      where("receptorId", "==", currentUser.uid),
+      where("leido", "==", false)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const counts = {};
+      snapshot.docs.forEach(d => {
+        const data = d.data();
+        const senderId = data.emisorId;
+        if (!counts[senderId]) {
+          counts[senderId] = { count: 0, lastMsg: "", lastTime: 0 };
+        }
+        counts[senderId].count++;
+        const time = data.fecha?.seconds || 0;
+        if (time > counts[senderId].lastTime) {
+          counts[senderId].lastTime = time;
+          counts[senderId].lastMsg = data.mensaje || "📎 Archivo";
+        }
+      });
+      setUnreadData(counts);
+    });
+
+    return () => unsubscribe();
   }, [currentUser]);
 
   // 3. Listen to messages and mark received messages as read
@@ -152,6 +185,12 @@ export default function GerenteChat() {
 
     const chatId = [currentUser.uid, activeUser.id].sort().join("_");
 
+    // Log Audit Trail
+    await registrarAuditoria(
+      "Mensajería - Envío de Mensaje",
+      `Se envio un mensaje de chat a ${activeUser.nombres || ""} ${activeUser.apellidos || ""} (Rol: ${activeUser.rol || "Usuario"}).`
+    );
+
     try {
       await addDoc(collection(db, "mensajes"), {
         chatId,
@@ -181,6 +220,12 @@ export default function GerenteChat() {
       const snap = await uploadBytes(fileRef, file);
       const url = await getDownloadURL(snap.ref);
 
+      // Log Audit Trail
+      await registrarAuditoria(
+        "Mensajería - Envío de Archivo",
+        `Se compartio un archivo adjunto (${file.name}) con ${activeUser.nombres || ""} ${activeUser.apellidos || ""} (Rol: ${activeUser.rol || "Usuario"}).`
+      );
+
       await addDoc(collection(db, "mensajes"), {
         chatId,
         emisorId: currentUser.uid,
@@ -199,12 +244,18 @@ export default function GerenteChat() {
     setSubiendoArchivo(false);
   }
 
-  // Filter list of users
-  const usersFiltrados = users.filter(u => 
-    `${u.nombres || ""} ${u.apellidos || ""}`
-      .toLowerCase()
-      .includes(busqueda.toLowerCase())
-  );
+  // Filter and sort users (unread first)
+  const usersFiltrados = users
+    .filter(u => 
+      `${u.nombres || ""} ${u.apellidos || ""}`
+        .toLowerCase()
+        .includes(busqueda.toLowerCase())
+    )
+    .sort((a, b) => {
+      const unreadA = unreadData[a.id]?.count || 0;
+      const unreadB = unreadData[b.id]?.count || 0;
+      return unreadB - unreadA;
+    });
 
   return (
     <div className="chatLayout">
@@ -233,23 +284,38 @@ export default function GerenteChat() {
           ) : usersFiltrados.length === 0 ? (
             <p className="statusMsg">No se encontraron contactos</p>
           ) : (
-            usersFiltrados.map(u => (
-              <div
-                key={u.id}
-                className={`userItem ${activeUser?.id === u.id ? "active" : ""}`}
-                onClick={() => setActiveUser(u)}
-              >
-                <div className="avatar">
-                  <User size={18} />
+            usersFiltrados.map(u => {
+              const unread = unreadData[u.id];
+              return (
+                <div
+                  key={u.id}
+                  className={`userItem ${activeUser?.id === u.id ? "active" : ""} ${unread?.count ? "hasUnread" : ""}`}
+                  onClick={() => setActiveUser(u)}
+                >
+                  <div className="avatar">
+                    <User size={18} />
+                    {unread?.count > 0 && (
+                      <span className="unreadBadge">{unread.count > 9 ? "9+" : unread.count}</span>
+                    )}
+                  </div>
+                  <div className="userInfo">
+                    <div className="userNameRow">
+                      <h4>{u.nombres} {u.apellidos}</h4>
+                      {unread?.count > 0 && (
+                        <span className="unreadDot" />
+                      )}
+                    </div>
+                    {unread?.lastMsg ? (
+                      <p className="lastMsgPreview">{unread.lastMsg.length > 35 ? unread.lastMsg.slice(0, 35) + "..." : unread.lastMsg}</p>
+                    ) : (
+                      <span className={`rolBadge ${getRoleInfo(u.rol).className}`}>
+                        {getRoleInfo(u.rol).label}
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <div className="userInfo">
-                  <h4>{u.nombres} {u.apellidos}</h4>
-                  <span className={`rolBadge ${getRoleInfo(u.rol).className}`}>
-                    {getRoleInfo(u.rol).label}
-                  </span>
-                </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </aside>
@@ -279,46 +345,71 @@ export default function GerenteChat() {
                   <p>Inicia la conversación. Escribe un mensaje abajo.</p>
                 </div>
               ) : (
-                messages.map(m => {
+                messages.map((m, idx) => {
                   const isMine = m.emisorId === currentUser?.uid;
                   const dateStr = m.fecha ? new Date(m.fecha.seconds * 1000).toLocaleTimeString("es-VE", { hour: '2-digit', minute: '2-digit' }) : "";
                   
+                  let senderName = m.emisorNombre || "Usuario";
+                  if (isMine) {
+                    senderName = "Tú";
+                  } else {
+                    const senderUser = users.find(u => u.id === m.emisorId);
+                    if (senderUser) {
+                      senderName = `${senderUser.nombres || ""} ${senderUser.apellidos || ""}`.trim();
+                    }
+                  }
+
+                  const prevMsg = idx > 0 ? messages[idx - 1] : null;
+                  const showSenderName = !prevMsg || prevMsg.emisorId !== m.emisorId;
+
                   return (
                     <div key={m.id} className={`messageRow ${isMine ? "mine" : "theirs"}`}>
-                      <div className="messageBubble">
-                        {m.archivoUrl ? (
-                          esImagen(m.archivoNombre) ? (
-                            <div className="imageAttachment">
-                              <img src={m.archivoUrl} alt={m.archivoNombre} className="chatAttachedImg" />
-                              <a href={m.archivoUrl} target="_blank" rel="noopener noreferrer" className="downloadLink">
-                                <Download size={12} /> Ver Imagen
-                              </a>
-                            </div>
-                          ) : (
-                            <div className="fileAttachment">
-                              <File size={24} className="fileIcon" />
-                              <div className="fileDetails">
-                                <span className="fileName" title={m.archivoNombre}>{m.archivoNombre}</span>
+                      {!isMine && showSenderName && (
+                        <div className="senderAvatar">
+                          <User size={14} />
+                        </div>
+                      )}
+                      <div className={`messageBubbleWrap ${!isMine && !showSenderName ? "noAvatar" : ""}`}>
+                        {showSenderName && (
+                          <span className={`senderName ${isMine ? "senderMine" : "senderTheirs"}`}>
+                            {senderName}
+                          </span>
+                        )}
+                        <div className="messageBubble">
+                          {m.archivoUrl ? (
+                            esImagen(m.archivoNombre) ? (
+                              <div className="imageAttachment">
+                                <img src={m.archivoUrl} alt={m.archivoNombre} className="chatAttachedImg" />
                                 <a href={m.archivoUrl} target="_blank" rel="noopener noreferrer" className="downloadLink">
-                                  <Download size={12} /> Descargar
+                                  <Download size={12} /> Ver Imagen
                                 </a>
                               </div>
-                            </div>
-                          )
-                        ) : (
-                          <p>{m.mensaje}</p>
-                        )}
-                        <div className="msgMeta">
-                          {dateStr && (
-                            <span className="msgTime">
-                              {dateStr}
-                            </span>
+                            ) : (
+                              <div className="fileAttachment">
+                                <File size={24} className="fileIcon" />
+                                <div className="fileDetails">
+                                  <span className="fileName" title={m.archivoNombre}>{m.archivoNombre}</span>
+                                  <a href={m.archivoUrl} target="_blank" rel="noopener noreferrer" className="downloadLink">
+                                    <Download size={12} /> Descargar
+                                  </a>
+                                </div>
+                              </div>
+                            )
+                          ) : (
+                            <p>{m.mensaje}</p>
                           )}
-                          {isMine && (
-                            <span className={`msgCheck ${m.leido ? "read" : "unread"}`} title={m.leido ? "Leído" : "Enviado"}>
-                              <CheckCheck size={14} />
-                            </span>
-                          )}
+                          <div className="msgMeta">
+                            {dateStr && (
+                              <span className="msgTime">
+                                {dateStr}
+                              </span>
+                            )}
+                            {isMine && (
+                              <span className={`msgCheck ${m.leido ? "read" : "unread"}`} title={m.leido ? "Leído" : "Enviado"}>
+                                <CheckCheck size={14} />
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -485,11 +576,66 @@ export default function GerenteChat() {
           justify-content: center;
           color: #475569;
           flex-shrink: 0;
+          position: relative;
         }
 
         .userItem.active .avatar {
           background: #dc2626;
           color: white;
+        }
+
+        .unreadBadge {
+          position: absolute;
+          top: -4px;
+          right: -4px;
+          background: #dc2626;
+          color: white;
+          font-size: 10px;
+          font-weight: 800;
+          min-width: 18px;
+          height: 18px;
+          border-radius: 9px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 0 4px;
+          border: 2px solid white;
+          line-height: 1;
+        }
+
+        .userNameRow {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+
+        .unreadDot {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          background: #22c55e;
+          flex-shrink: 0;
+          animation: pulse-dot 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-dot {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.4; }
+        }
+
+        .lastMsgPreview {
+          margin: 0;
+          font-size: 12px;
+          color: #64748b;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          font-weight: 500;
+        }
+
+        .userItem.hasUnread .lastMsgPreview {
+          color: #1e293b;
+          font-weight: 700;
         }
 
         .userInfo {
@@ -623,8 +769,60 @@ export default function GerenteChat() {
           justify-content: flex-start;
         }
 
-        .messageBubble {
+        .messageRow.theirs {
+          gap: 8px;
+        }
+
+        .senderAvatar {
+          width: 28px;
+          height: 28px;
+          border-radius: 50%;
+          background: #e2e8f0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #64748b;
+          flex-shrink: 0;
+          align-self: flex-end;
+          margin-bottom: 2px;
+        }
+
+        .messageBubbleWrap {
+          display: flex;
+          flex-direction: column;
           max-width: 70%;
+        }
+
+        .messageBubbleWrap.noAvatar {
+          margin-left: 36px;
+        }
+
+        .mine .messageBubbleWrap {
+          align-items: flex-end;
+        }
+
+        .theirs .messageBubbleWrap {
+          align-items: flex-start;
+        }
+
+        .senderName {
+          font-size: 11px;
+          font-weight: 800;
+          margin-bottom: 3px;
+          padding: 0 4px;
+          letter-spacing: 0.2px;
+        }
+
+        .senderMine {
+          color: #dc2626;
+        }
+
+        .senderTheirs {
+          color: #3b82f6;
+        }
+
+        .messageBubble {
+          max-width: 100%;
           padding: 12px 16px;
           border-radius: 16px;
           font-size: 14px;

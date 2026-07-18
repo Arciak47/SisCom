@@ -17,36 +17,36 @@ self.addEventListener("install", (event) => {
   );
 });
 
-// Cache and return requests
+// Cache and return requests (network-first strategy)
 self.addEventListener("fetch", (event) => {
-  // Only cache GET requests, ignore firestore / api / chrome extension requests
+  // Only handle GET requests from our origin
   if (event.request.method !== "GET" || !event.request.url.startsWith(self.location.origin)) {
     return;
   }
 
+  // Never cache Next.js build chunks – they change on every build
+  if (event.request.url.includes("/_next/")) {
+    return;
+  }
+
   event.respondWith(
-    caches.match(event.request).then((response) => {
-      // Cache hit - return response
-      if (response) {
-        return response;
-      }
-      return fetch(event.request).then((res) => {
-        // Check if we received a valid response
-        if (!res || res.status !== 200 || res.type !== "basic") {
-          return res;
+    fetch(event.request)
+      .then((res) => {
+        // Got a valid network response – update cache and return it
+        if (res && res.status === 200 && res.type === "basic") {
+          const responseToCache = res.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseToCache);
+          });
         }
-
-        const responseToCache = res.clone();
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, responseToCache);
-        });
-
         return res;
-      }).catch(() => {
-        // Fallback for offline if not in cache
-        return caches.match("/login");
-      });
-    })
+      })
+      .catch(() => {
+        // Network failed – try cache fallback (offline support)
+        return caches.match(event.request).then((cached) => {
+          return cached || caches.match("/login");
+        });
+      })
   );
 });
 

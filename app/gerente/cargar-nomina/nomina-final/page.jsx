@@ -4,9 +4,9 @@ import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { db } from "../../../lib/firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
+import { exportarPDF } from "../../../lib/exportHelpers";
+import { checkDuplicateFichasInDB, normalizeHeader, findHeaderRowIndex, formatCategoryName, validarNombreArchivo, registrarAuditoria } from "../../../lib/validationHelpers";
 import { 
   Users, 
   Download, 
@@ -27,6 +27,12 @@ import {
 
 export default function NominaConsole() {
   const router = useRouter();
+
+  const limpiar = (txt) =>
+    txt?.toString().trim().replace(/\s+/g, " ");
+
+  const capitalizar = (txt) =>
+    txt?.toString().toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
 
   // Active Category state: fijos | contratistas | inces | pasantes | visitantes
   const [activeCat, setActiveCat] = useState("fijos");
@@ -77,13 +83,12 @@ export default function NominaConsole() {
       "Edad",
       "Cedula",
       "Cargo",
-      "Empresa",
-      "Jefe o Supervisor inmediato"
+      "Empresa"
     ],
     inces: [
+      "Numero de ficha",
       "Nombres",
       "Apellidos",
-      "Numero de ficha",
       "Edad",
       "Cedula",
       "Supervisor"
@@ -147,6 +152,11 @@ export default function NominaConsole() {
         ...prev,
         [category]: arrayData
       }));
+      // Log Audit Trail
+      await registrarAuditoria(
+        "Modificación de Nómina",
+        `Se actualizo la nomina de la categoria ${category.toUpperCase()} en la consola final (total registros: ${arrayData.length}).`
+      );
     } catch (error) {
       console.error(`Error saving ${category} data:`, error);
       alert("❌ Error al guardar en base de datos");
@@ -158,6 +168,12 @@ export default function NominaConsole() {
     const file = e.target.files[0];
     if (!file) return;
 
+    if (!validarNombreArchivo(file.name, activeCat)) {
+      alert(`❌ El archivo '${file.name}' no corresponde a la categoría activa: ${formatCategoryName(activeCat)}.`);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = async (evt) => {
       try {
@@ -165,40 +181,123 @@ export default function NominaConsole() {
         const wb = XLSX.read(bstr, { type: "binary" });
         const wsname = wb.SheetNames[0];
         const ws = wb.Sheets[wsname];
-        const rawData = XLSX.utils.sheet_to_json(ws, { defval: "" });
-
-        if (rawData.length === 0) {
+        
+        const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
+        if (rows.length === 0) {
           alert("⚠️ El archivo Excel está vacío.");
           return;
         }
 
-        // Clean headers to match the expected format exactly
-        const cleanedData = rawData.map(row => {
+        const headerIndex = findHeaderRowIndex(rows);
+        if (headerIndex === -1) {
+          alert("❌ No se encontraron las cabeceras válidas en el archivo.");
+          return;
+        }
+
+        const headers = rows[headerIndex];
+        const dataRows = rows.slice(headerIndex + 1);
+
+        // Map column names dynamically
+        const getHeaderIdx = (name) => {
+          const target = normalizeHeader(name);
+          return headers.findIndex(h => {
+            const normH = normalizeHeader(h);
+            if (target === "numero de ficha" && normH === "ficha") return true;
+            if (target === "empresa" && normH === "empresa contratista") return true;
+            return normH === target;
+          });
+        };
+
+        let internalFichas = new Set();
+        let duplicateFichasInFile = new Set();
+        const cleanedData = [];
+
+        for (let i = 0; i < dataRows.length; i++) {
+          const row = dataRows[i];
+          if (!row || row.length === 0) continue;
+
+          const getValue = (idx) => idx !== -1 && row[idx] !== undefined && row[idx] !== null ? String(row[idx]).trim() : "";
+
+          // Verify if row is empty
+          const hasNombres = getHeaderIdx("nombres") !== -1 && getValue(getHeaderIdx("nombres"));
+          const hasCedula = getHeaderIdx("cedula") !== -1 && getValue(getHeaderIdx("cedula"));
+          if (!hasNombres && !hasCedula) continue; // skip empty rows
+
           const newRow = {};
+          
           currentHeaders.forEach(h => {
-            // Find key in row that case-insensitive matches header
-            const keyFound = Object.keys(row).find(k => k.trim().toLowerCase() === h.toLowerCase());
-            newRow[h] = keyFound ? String(row[keyFound]).trim() : "";
+            let idx = getHeaderIdx(h);
+            newRow[h] = getValue(idx);
           });
 
-          // Auto-generate Numero de ficha for pasantes and visitantes in excel upload
-          const cleanCedulaNum = (c) => String(c || "").replace(/\D/g, "");
-          if (activeCat === "pasantes") {
-            const cleanC = cleanCedulaNum(newRow["Cedula"]);
-            newRow["Numero de ficha"] = cleanC.slice(-4);
-          } else if (activeCat === "visitantes") {
-            newRow["Numero de ficha"] = newRow["Cedula"];
+          // Capitalize names and format cédula if they exist
+          if (newRow["Nombres"]) newRow["Nombres"] = capitalizar(newRow["Nombres"]);
+          if (newRow["Apellidos"]) newRow["Apellidos"] = capitalizar(newRow["Apellidos"]);
+          if (newRow["Cargo"]) newRow["Cargo"] = capitalizar(newRow["Cargo"]);
+          if (newRow["Supervisor"]) newRow["Supervisor"] = capitalizar(newRow["Supervisor"]);
+          if (newRow["Jefe o Supervisor inmediato"]) {
+            newRow["Jefe o Supervisor inmediato"] = capitalizar(newRow["Jefe o Supervisor inmediato"]);
+          }
+          if (newRow["Empresa"]) newRow["Empresa"] = capitalizar(newRow["Empresa"]);
+          if (newRow["Area Asignada"]) newRow["Area Asignada"] = capitalizar(newRow["Area Asignada"]);
+
+          if (newRow["Cedula"]) {
+            const cleanCed = newRow["Cedula"].replace(/^V-/i, "").replace(/\D/g, "");
+            newRow["Cedula"] = cleanCed ? `V-${cleanCed}` : "";
           }
 
-          return newRow;
-        });
+          // Auto-generate or adjust Numero de ficha
+          let ficha = newRow["Numero de ficha"];
+          if (!ficha) {
+            const cleanCed = (newRow["Cedula"] || "").replace(/^V-/i, "").replace(/\D/g, "");
+            if (activeCat === "pasantes") {
+              ficha = cleanCed.slice(-4);
+            } else if (activeCat === "visitantes") {
+              ficha = newRow["Cedula"];
+            }
+          }
+          newRow["Numero de ficha"] = ficha;
+
+          if (ficha && internalFichas.has(ficha)) {
+            const existing = cleanedData.find(item => item["Numero de ficha"] === ficha);
+            if (existing && existing["Cedula"] === newRow["Cedula"]) {
+              // Exact duplicate row (same person & card), skip it silently
+              continue;
+            } else {
+              duplicateFichasInFile.add(ficha);
+            }
+          }
+
+          if (ficha) internalFichas.add(ficha);
+
+          cleanedData.push(newRow);
+        }
+
+        if (duplicateFichasInFile.size > 0) {
+          alert(`❌ El archivo contiene números de ficha duplicados: ${Array.from(duplicateFichasInFile).join(", ")}`);
+          return;
+        }
+
+        // Validate duplicates against DB (other categories)
+        const dbConflicts = await checkDuplicateFichasInDB(Array.from(internalFichas), activeCat);
+        if (dbConflicts.length > 0) {
+          const conflictMsgs = dbConflicts.map(c => `Ficha ${c.ficha} (ya existe en ${formatCategoryName(c.category)})`);
+          alert(`❌ Conflicto de fichas con la base de datos:\n${conflictMsgs.join("\n")}`);
+          return;
+        }
+
+        const ok = confirm(`⚠️ ¿Está seguro de que desea reemplazar toda la nómina actual de ${formatCategoryName(activeCat)} con los datos de este archivo Excel? Esta acción borrará los registros anteriores.`);
+        if (!ok) {
+          if (fileInputRef.current) fileInputRef.current.value = "";
+          return;
+        }
 
         await saveCategoryData(activeCat, cleanedData);
         alert(`✅ Se importaron ${cleanedData.length} trabajadores correctamente.`);
         if (fileInputRef.current) fileInputRef.current.value = "";
       } catch (err) {
         console.error(err);
-        alert("❌ Error al procesar el archivo Excel. Verifica el formato.");
+        alert("❌ Error al procesar: " + err.message);
       }
     };
     reader.readAsBinaryString(file);
@@ -235,6 +334,29 @@ export default function NominaConsole() {
       ficha = formData["Cedula"];
     }
 
+    if (!ficha) {
+      alert("❌ El número de ficha es requerido.");
+      return;
+    }
+
+    // Check duplicate in DB (other categories)
+    const dbConflicts = await checkDuplicateFichasInDB([ficha], activeCat);
+    if (dbConflicts.length > 0) {
+      alert(`❌ Conflicto: La ficha ${ficha} ya existe en la categoría ${formatCategoryName(dbConflicts[0].category)}`);
+      return;
+    }
+
+    // Check duplicate within the same category
+    const duplicateInSameCat = currentList.some((worker, idx) => {
+      if (idx === modalEditar.index) return false;
+      return String(worker["Numero de ficha"] || "").trim() === String(ficha).trim();
+    });
+
+    if (duplicateInSameCat) {
+      alert(`❌ Conflicto: La ficha ${ficha} ya existe en esta categoría.`);
+      return;
+    }
+
     const registroEditado = { ...formData };
     if (activeCat === "pasantes" || activeCat === "visitantes") {
       registroEditado["Numero de ficha"] = ficha;
@@ -268,6 +390,28 @@ export default function NominaConsole() {
       ficha = formData["Cedula"];
     }
 
+    if (!ficha) {
+      alert("❌ El número de ficha es requerido.");
+      return;
+    }
+
+    // Check duplicate in DB (other categories)
+    const dbConflicts = await checkDuplicateFichasInDB([ficha], activeCat);
+    if (dbConflicts.length > 0) {
+      alert(`❌ Conflicto: La ficha ${ficha} ya existe en la categoría ${formatCategoryName(dbConflicts[0].category)}`);
+      return;
+    }
+
+    // Check duplicate within the same category
+    const duplicateInSameCat = currentList.some((worker) => {
+      return String(worker["Numero de ficha"] || "").trim() === String(ficha).trim();
+    });
+
+    if (duplicateInSameCat) {
+      alert(`❌ Conflicto: La ficha ${ficha} ya existe en esta categoría.`);
+      return;
+    }
+
     const nuevoRegistro = { ...formData };
     if (activeCat === "pasantes" || activeCat === "visitantes") {
       nuevoRegistro["Numero de ficha"] = ficha;
@@ -287,10 +431,24 @@ export default function NominaConsole() {
       alert("No hay registros para exportar");
       return;
     }
-    const ws = XLSX.utils.json_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, activeCat.toUpperCase());
-    XLSX.writeFile(wb, `Nomina_${activeCat}_${new Date().toISOString().split("T")[0]}.xlsx`);
+    try {
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, activeCat.toUpperCase());
+      const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+      const blob = new Blob([wbout], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Nomina_${activeCat}_${new Date().toISOString().split("T")[0]}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Error al exportar Excel:", err);
+      alert("❌ Error al generar el archivo Excel.");
+    }
   }
 
   // Export Category to PDF
@@ -301,30 +459,8 @@ export default function NominaConsole() {
       return;
     }
 
-    const pdf = new jsPDF({
-      orientation: "landscape",
-      unit: "mm",
-      format: "a4"
-    });
-
-    pdf.setFontSize(16);
-    pdf.text(`Nómina - ${activeCat.toUpperCase()}`, 14, 15);
-    pdf.setFontSize(10);
-    pdf.text(`Generado: ${new Date().toLocaleString()}`, 14, 21);
-
-    const body = data.map((row) =>
-      currentHeaders.map((header) => row[header] || "-")
-    );
-
-    autoTable(pdf, {
-      startY: 27,
-      head: [currentHeaders],
-      body,
-      styles: { fontSize: 8 },
-      headStyles: { fillColor: [220, 38, 38] }
-    });
-
-    pdf.save(`Nomina_${activeCat}.pdf`);
+    const columnas = currentHeaders.map(h => ({ key: h, label: h }));
+    exportarPDF(`Nómina - ${activeCat.toUpperCase()}`, columnas, data, `Nomina_${activeCat.toUpperCase()}`);
   }
 
   // Filter list of active category
@@ -440,10 +576,6 @@ export default function NominaConsole() {
 
           <button className="actionBtn wipeBtn" onClick={() => setConfirmWipe(true)}>
             <Trash size={16} /> Vaciar Tabla
-          </button>
-
-          <button className="exportBtn excel" onClick={exportExcel}>
-            <Download size={16} /> Excel
           </button>
 
           <button className="exportBtn pdf" onClick={exportPDF}>

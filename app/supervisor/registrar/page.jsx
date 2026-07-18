@@ -13,9 +13,7 @@ import {
   where
 } from "firebase/firestore";
 import { auth, db } from "../../lib/firebase";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
-import * as XLSX from "xlsx";
+import { exportarExcel, exportarPDF } from "../../lib/exportHelpers";
 import {
   Search,
   User2,
@@ -324,6 +322,14 @@ export default function RegistrarAsistenciaPage() {
         estado: "registrado"
       });
 
+      // Audit Log
+      await addDoc(collection(db, "auditoria"), {
+        accion: "Registro de Asistencia",
+        descripcion: `Se registro asistencia de comida (${comidaSeleccionada.toUpperCase()}) al trabajador ${trabajador.nombres} ${trabajador.apellidos} (Cedula: ${trabajador.cedula})`,
+        realizadoPor: `Supervisor (${nombreSupervisor || "Supervisor"})`,
+        fecha: serverTimestamp()
+      });
+
       alert(`✅ ${comidaSeleccionada.toUpperCase()} registrado correctamente`);
       setFicha("");
       setTrabajador(null);
@@ -340,22 +346,34 @@ export default function RegistrarAsistenciaPage() {
       alert("No hay registros hoy para exportar");
       return;
     }
-    const dataExcel = asistenciasFiltradas.map((item, idx) => ({
-      "#": idx + 1,
-      "Fecha y Hora": item.fechaHoraTexto,
-      "Ficha": item.ficha || "-",
-      "Cédula": item.cedula || "-",
-      "Trabajador": `${item.nombres || ""} ${item.apellidos || ""}`,
-      "Cargo": item.cargo || "-",
-      "Departamento": item.departamento || "-",
-      "Nómina": item.tipoNomina || "-",
-      "Comida": item.tipoComida || "-",
-      "Supervisor": item.supervisorRegistro || "-"
+
+    const columnas = [
+      { key: "index", label: "#" },
+      { key: "fechaHoraTexto", label: "Fecha y Hora" },
+      { key: "ficha", label: "Ficha" },
+      { key: "cedula", label: "Cédula" },
+      { key: "trabajador", label: "Trabajador" },
+      { key: "cargo", label: "Cargo" },
+      { key: "departamento", label: "Departamento" },
+      { key: "tipoNomina", label: "Nómina" },
+      { key: "tipoComida", label: "Comida" },
+      { key: "supervisorRegistro", label: "Supervisor" }
+    ];
+
+    const filas = asistenciasFiltradas.map((item, idx) => ({
+      index: idx + 1,
+      fechaHoraTexto: item.fechaHoraTexto,
+      ficha: item.ficha || "-",
+      cedula: item.cedula || "-",
+      trabajador: `${item.nombres || ""} ${item.apellidos || ""}`,
+      cargo: item.cargo || "-",
+      departamento: item.departamento || "-",
+      tipoNomina: item.tipoNomina || "-",
+      tipoComida: item.tipoComida?.toUpperCase() || "-",
+      supervisorRegistro: item.supervisorRegistro || "-"
     }));
-    const ws = XLSX.utils.json_to_sheet(dataExcel);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Asistencias Hoy");
-    XLSX.writeFile(wb, `Asistencias_Supervisor_Hoy_${new Date().toISOString().split("T")[0]}.xlsx`);
+
+    exportarExcel(columnas, filas, "Asistencias_Supervisor_Hoy");
   }
 
   function exportarPDFHoy() {
@@ -363,37 +381,32 @@ export default function RegistrarAsistenciaPage() {
       alert("No hay registros hoy para exportar");
       return;
     }
-    const pdf = new jsPDF({
-      orientation: "landscape",
-      unit: "mm",
-      format: "a4"
-    });
-    pdf.setFontSize(16);
-    pdf.text(`Asistencias del Día de Hoy (Supervisor)`, 14, 15);
-    pdf.setFontSize(10);
-    pdf.text(`Generado: ${new Date().toLocaleString()}`, 14, 21);
 
-    const headers = [["#", "Fecha y Hora", "Ficha", "Cédula", "Trabajador", "Cargo", "Dpto", "Nómina", "Comida"]];
-    const body = asistenciasFiltradas.map((item, idx) => [
-      idx + 1,
-      item.fechaHoraTexto,
-      item.ficha || "-",
-      item.cedula || "-",
-      `${item.nombres || ""} ${item.apellidos || ""}`,
-      item.cargo || "-",
-      item.departamento || "-",
-      item.tipoNomina || "-",
-      item.tipoComida?.toUpperCase() || "-"
-    ]);
+    const columnas = [
+      { key: "index", label: "#" },
+      { key: "fechaHoraTexto", label: "Fecha y Hora" },
+      { key: "ficha", label: "Ficha" },
+      { key: "cedula", label: "Cédula" },
+      { key: "trabajador", label: "Trabajador" },
+      { key: "cargo", label: "Cargo" },
+      { key: "departamento", label: "Dpto" },
+      { key: "tipoNomina", label: "Nómina" },
+      { key: "tipoComida", label: "Comida" }
+    ];
 
-    autoTable(pdf, {
-      startY: 26,
-      head: headers,
-      body,
-      styles: { fontSize: 8 },
-      headStyles: { fillColor: [220, 38, 38] }
-    });
-    pdf.save(`Asistencias_Hoy_${new Date().toISOString().split("T")[0]}.pdf`);
+    const filas = asistenciasFiltradas.map((item, idx) => ({
+      index: idx + 1,
+      fechaHoraTexto: item.fechaHoraTexto,
+      ficha: item.ficha || "-",
+      cedula: item.cedula || "-",
+      trabajador: `${item.nombres || ""} ${item.apellidos || ""}`,
+      cargo: item.cargo || "-",
+      departamento: item.departamento || "-",
+      tipoNomina: item.tipoNomina || "-",
+      tipoComida: item.tipoComida?.toUpperCase() || "-"
+    }));
+
+    exportarPDF("Asistencias del Día de Hoy (Supervisor)", columnas, filas, "Asistencias_Hoy");
   }
 
   // Paginación de asistencias de hoy
@@ -605,9 +618,6 @@ export default function RegistrarAsistenciaPage() {
               <option value="almuerzo">Almuerzo</option>
               <option value="cena">Cena</option>
             </select>
-            <button className="downloadBtn excel" onClick={exportarExcelHoy}>
-              <Download size={16} /> Excel
-            </button>
             <button className="downloadBtn pdf" onClick={exportarPDFHoy}>
               <Download size={16} /> PDF
             </button>

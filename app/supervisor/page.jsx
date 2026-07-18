@@ -5,9 +5,7 @@ import { useRouter } from "next/navigation";
 import { auth, db } from "../lib/firebase";
 import { doc, getDoc, collection, getDocs, query, orderBy, where } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
-import * as XLSX from "xlsx";
+
 import { 
   Chart as ChartJS, 
   CategoryScale, 

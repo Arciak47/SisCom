@@ -3,10 +3,11 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { db, auth } from "../../lib/firebase";
-import { doc, getDoc, setDoc, addDoc, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc, setDoc, addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import * as XLSX from "xlsx";
 import { exportarExcel, exportarPDF } from "../../lib/exportHelpers";
+import { checkDuplicateFichasInDB, normalizeHeader, findHeaderRowIndex, formatCategoryName, validarNombreArchivo } from "../../lib/validationHelpers";
 import {
   Users,
   Search,
@@ -45,13 +46,12 @@ const CATEGORY_SCHEMAS = {
     { key: "Edad", label: "Edad", type: "number", required: true },
     { key: "Cedula", label: "Cédula", type: "text", required: true },
     { key: "Cargo", label: "Cargo", type: "text", required: true },
-    { key: "Empresa", label: "Empresa", type: "text", required: true },
-    { key: "Jefe o Supervisor inmediato", label: "Jefe o Supervisor Inmediato", type: "text", required: true }
+    { key: "Empresa", label: "Empresa", type: "text", required: true }
   ],
   inces: [
+    { key: "Numero de ficha", label: "Ficha", type: "text", required: true },
     { key: "Nombres", label: "Nombres", type: "text", required: true },
     { key: "Apellidos", label: "Apellidos", type: "text", required: true },
-    { key: "Numero de ficha", label: "Ficha", type: "text", required: true },
     { key: "Edad", label: "Edad", type: "number", required: true },
     { key: "Cedula", label: "Cédula", type: "text", required: true },
     { key: "Supervisor", label: "Supervisor", type: "text", required: true }
@@ -163,7 +163,7 @@ export default function GerenteNominaPage() {
   // Helper to log audit events
   async function registrarAuditoria(accion, descripcion) {
     try {
-      await addDoc(doc(db, "auditoria", `${Date.now()}`), {
+      await addDoc(collection(db, "auditoria"), {
         accion,
         descripcion,
         realizadoPor: `Gerente (${nombreUsuario})`,
@@ -194,8 +194,20 @@ export default function GerenteNominaPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    if (!validarNombreArchivo(file.name, categoria)) {
+      alert(`❌ El archivo '${file.name}' no corresponde a la categoría activa: ${formatCategoryName(categoria)}.`);
+      e.target.value = "";
+      return;
+    }
+
     setCargandoArchivo(true);
     const reader = new FileReader();
+
+    const limpiar = (txt) =>
+      txt?.toString().trim().replace(/\s+/g, " ");
+
+    const capitalizar = (txt) =>
+      txt?.toString().toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
 
     reader.onload = async (evt) => {
       try {
@@ -203,55 +215,113 @@ export default function GerenteNominaPage() {
         const wb = XLSX.read(bstr, { type: "binary" });
         const wsname = wb.SheetNames[0];
         const ws = wb.Sheets[wsname];
-        const json = XLSX.utils.sheet_to_json(ws);
-
-        if (json.length === 0) {
+        
+        const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
+        if (rows.length === 0) {
           alert("⚠️ El archivo Excel está vacío.");
           setCargandoArchivo(false);
           return;
         }
 
+        const headerIndex = findHeaderRowIndex(rows);
+        if (headerIndex === -1) {
+          alert("❌ No se encontraron las cabeceras válidas en el archivo.");
+          setCargandoArchivo(false);
+          return;
+        }
+
+        const headers = rows[headerIndex];
+        const dataRows = rows.slice(headerIndex + 1);
+
         const schema = CATEGORY_SCHEMAS[categoria];
 
-        // Standardize headers dynamically
-        const mapeado = json.map((row) => {
-          const getVal = (patterns) => {
-            const key = Object.keys(row).find((k) =>
-              patterns.some((p) => k.toLowerCase().includes(p.toLowerCase()))
-            );
-            return key ? String(row[key]).trim() : "";
-          };
+        // Map column names dynamically using normalizeHeader
+        const getHeaderIdx = (name) => {
+          const target = normalizeHeader(name);
+          return headers.findIndex(h => {
+            const normH = normalizeHeader(h);
+            if (target === "numero de ficha" && normH === "ficha") return true;
+            if (target === "empresa" && normH === "empresa contratista") return true;
+            return normH === target;
+          });
+        };
+
+        let internalFichas = new Set();
+        let duplicateFichasInFile = new Set();
+        const validos = [];
+
+        for (let i = 0; i < dataRows.length; i++) {
+          const row = dataRows[i];
+          if (!row || row.length === 0) continue;
+
+          const getValue = (idx) => idx !== -1 && row[idx] !== undefined && row[idx] !== null ? String(row[idx]).trim() : "";
+
+          // Check if row has Nombres or Cedula
+          const nombresIdx = getHeaderIdx("nombres");
+          const apellidosIdx = getHeaderIdx("apellidos");
+          const cedulaIdx = getHeaderIdx("cedula");
+
+          const hasName = nombresIdx !== -1 && getValue(nombresIdx);
+          const hasCedula = cedulaIdx !== -1 && getValue(cedulaIdx);
+          if (!hasName && !hasCedula) continue; // Skip empty rows
 
           const newRow = {};
           schema.forEach(col => {
-            let patterns = [col.label.toLowerCase(), col.key.toLowerCase()];
-            if (col.key === "Numero de ficha") patterns.push("ficha", "nro ficha", "codigo", "código");
-            if (col.key === "Cedula") patterns.push("ci", "identificación", "id", "cédula");
-            if (col.key === "Jefe o Supervisor inmediato") patterns.push("jefe", "jefe inmediato", "supervisor inmediato");
-            if (col.key === "Area Asignada") patterns.push("área", "area", "departamento", "dpto", "area asignada");
-            if (col.key === "Empresa") patterns.push("empresa", "compañía", "contratista");
-            newRow[col.key] = getVal(patterns);
+            let idx = getHeaderIdx(col.key);
+            if (idx === -1) {
+              idx = getHeaderIdx(col.label);
+            }
+            newRow[col.key] = getValue(idx);
           });
 
-          // Auto-generate Numero de ficha for pasantes and visitantes in excel upload
-          const cleanCedulaNum = (c) => String(c || "").replace(/\D/g, "");
-          if (categoria === "pasantes") {
-            const cleanC = cleanCedulaNum(newRow["Cedula"]);
-            newRow["Numero de ficha"] = cleanC.slice(-4);
-          } else if (categoria === "visitantes") {
-            newRow["Numero de ficha"] = newRow["Cedula"];
+          // Capitalize & clean fields
+          if (newRow["Nombres"]) newRow["Nombres"] = capitalizar(newRow["Nombres"]);
+          if (newRow["Apellidos"]) newRow["Apellidos"] = capitalizar(newRow["Apellidos"]);
+          if (newRow["Cargo"]) newRow["Cargo"] = capitalizar(newRow["Cargo"]);
+          if (newRow["Supervisor"]) newRow["Supervisor"] = capitalizar(newRow["Supervisor"]);
+          if (newRow["Jefe o Supervisor inmediato"]) {
+            newRow["Jefe o Supervisor inmediato"] = capitalizar(newRow["Jefe o Supervisor inmediato"]);
+          }
+          if (newRow["Empresa"]) newRow["Empresa"] = capitalizar(newRow["Empresa"]);
+          if (newRow["Area Asignada"]) newRow["Area Asignada"] = capitalizar(newRow["Area Asignada"]);
+
+          if (newRow["Cedula"]) {
+            const cleanCed = newRow["Cedula"].replace(/^V-/i, "").replace(/\D/g, "");
+            newRow["Cedula"] = cleanCed ? `V-${cleanCed}` : "";
           }
 
-          return newRow;
-        });
+          // Auto-generate or adjust Numero de ficha
+          let ficha = newRow["Numero de ficha"];
+          if (!ficha) {
+            const cleanCed = (newRow["Cedula"] || "").replace(/^V-/i, "").replace(/\D/g, "");
+            if (categoria === "pasantes") {
+              ficha = cleanCed.slice(-4);
+            } else if (categoria === "visitantes") {
+              ficha = newRow["Cedula"];
+            }
+          }
+          newRow["Numero de ficha"] = ficha;
 
-        // Filter valid entries
-        const validos = mapeado.filter((r) => {
-          const hasName = r["Nombres"] && r["Apellidos"];
-          const hasFichaIfRequired = schema.some(col => col.key === "Numero de ficha" && col.required) ? r["Numero de ficha"] : true;
-          const hasCedulaIfRequired = schema.some(col => col.key === "Cedula") ? r["Cedula"] : true;
-          return hasName && hasFichaIfRequired && hasCedulaIfRequired;
-        });
+          // Autodeduplicate identical copy-paste records
+          if (ficha && internalFichas.has(ficha)) {
+            const existing = validos.find(item => item["Numero de ficha"] === ficha);
+            if (existing && existing["Cedula"] === newRow["Cedula"]) {
+              // Same person and card, skip duplicate row
+              continue;
+            } else {
+              duplicateFichasInFile.add(ficha);
+            }
+          }
+
+          if (ficha) internalFichas.add(ficha);
+          validos.push(newRow);
+        }
+
+        if (duplicateFichasInFile.size > 0) {
+          alert(`❌ El archivo contiene números de ficha duplicados: ${Array.from(duplicateFichasInFile).join(", ")}`);
+          setCargandoArchivo(false);
+          return;
+        }
 
         if (validos.length === 0) {
           alert("❌ No se encontraron filas válidas con datos requeridos en el Excel.");
@@ -259,8 +329,23 @@ export default function GerenteNominaPage() {
           return;
         }
 
+        // Validate conflicts against other DB categories
+        const dbConflicts = await checkDuplicateFichasInDB(Array.from(internalFichas), categoria);
+        if (dbConflicts.length > 0) {
+          const conflictMsgs = dbConflicts.map(c => `Ficha ${c.ficha} (ya existe en ${formatCategoryName(c.category)})`);
+          alert(`❌ Conflicto de fichas con la base de datos:\n${conflictMsgs.join("\n")}`);
+          setCargandoArchivo(false);
+          return;
+        }
+
         let datosFinales = [];
         if (modoCarga === "reemplazar") {
+          const ok = confirm(`⚠️ ¿Está seguro de que desea reemplazar toda la nómina actual de ${formatCategoryName(categoria)} con los datos de este archivo Excel? Esta acción borrará los registros anteriores.`);
+          if (!ok) {
+            setCargandoArchivo(false);
+            e.target.value = "";
+            return;
+          }
           datosFinales = validos;
         } else {
           // Merge avoiding duplicated Ficha/Cedula
@@ -297,7 +382,7 @@ export default function GerenteNominaPage() {
         alert(`✅ Nómina de ${categoria.toUpperCase()} cargada con éxito. Total registros: ${datosFinales.length}`);
       } catch (err) {
         console.error(err);
-        alert("❌ Error al procesar el archivo Excel. Asegúrese de que tenga columnas correctas.");
+        alert("❌ Error al procesar: " + err.message);
       }
       setCargandoArchivo(false);
       e.target.value = "";
@@ -323,6 +408,19 @@ export default function GerenteNominaPage() {
     const hasFicha = schema.some(col => col.key === "Numero de ficha");
     const hasCedula = schema.some(col => col.key === "Cedula");
     const cleanCedulaNum = (c) => String(c || "").replace(/\D/g, "");
+
+    if (hasCedula && formData["Cedula"]) {
+      const cleanCed = cleanCedulaNum(formData["Cedula"]);
+      if (cleanCed.length < 7 || cleanCed.length > 8) {
+        alert("❌ La cédula debe tener entre 7 y 8 dígitos.");
+        return;
+      }
+    }
+    const cleanEdad = String(formData["Edad"] || "").replace(/\D/g, "");
+    if (cleanEdad.length !== 2) {
+      alert("❌ La edad debe tener exactamente 2 dígitos.");
+      return;
+    }
     
     let ficha = formData["Numero de ficha"];
     if (categoria === "pasantes") {
@@ -333,6 +431,14 @@ export default function GerenteNominaPage() {
     const cedula = formData["Cedula"];
 
     if (editIndex === null) {
+      if (ficha) {
+        // Check duplicate in DB (other categories)
+        const dbConflicts = await checkDuplicateFichasInDB([ficha], categoria);
+        if (dbConflicts.length > 0) {
+          alert(`❌ Conflicto: La ficha ${ficha} ya existe en la categoría ${formatCategoryName(dbConflicts[0].category)}`);
+          return;
+        }
+      }
       if (hasFicha && ficha) {
         const existeFicha = listado.some((item) => String(item["Numero de ficha"]).trim() === String(ficha).trim());
         if (existeFicha) {
@@ -348,6 +454,14 @@ export default function GerenteNominaPage() {
         }
       }
     } else {
+      if (ficha) {
+        // Check duplicate in DB (other categories)
+        const dbConflicts = await checkDuplicateFichasInDB([ficha], categoria);
+        if (dbConflicts.length > 0) {
+          alert(`❌ Conflicto: La ficha ${ficha} ya existe en la categoría ${formatCategoryName(dbConflicts[0].category)}`);
+          return;
+        }
+      }
       if (hasFicha && ficha) {
         const existeFicha = listado.some(
           (item, idx) => idx !== editIndex && String(item["Numero de ficha"]).trim() === String(ficha).trim()
@@ -406,7 +520,18 @@ export default function GerenteNominaPage() {
     }
   }
 
-  // 6. CRUD: Edit Click
+  // 6. Form Change handler with digit filtering for Age/Cedula/Ficha
+  const handleFormInputChange = (colKey, rawValue) => {
+    let value = rawValue;
+    if (colKey === "Edad" || colKey === "Cedula" || colKey === "Numero de ficha") {
+      value = value.replace(/\D/g, "");
+      if (colKey === "Cedula") value = value.slice(0, 8);
+      if (colKey === "Edad") value = value.slice(0, 2);
+    }
+    setFormData({ ...formData, [colKey]: value });
+  };
+
+  // 7. CRUD: Edit Click
   function iniciarEdicion(item, index) {
     setEditIndex(index);
     const editData = {};
@@ -607,10 +732,7 @@ export default function GerenteNominaPage() {
         <div className="nm-upload-controls">
           <div className="nm-select-group">
             <label>Método de Carga:</label>
-            <select value={modoCarga} onChange={(e) => setModoCarga(e.target.value)}>
-              <option value="reemplazar">Reemplazar nómina actual</option>
-              <option value="anexar">Anexar y actualizar registros</option>
-            </select>
+            <span style={{ fontWeight: "600", color: "#4f46e5", fontSize: "14px" }}>Reemplazar nómina actual</span>
           </div>
 
           <label className={`nm-upload-btn ${cargandoArchivo ? "disabled" : ""}`}>
@@ -645,9 +767,6 @@ export default function GerenteNominaPage() {
         </div>
 
         <div className="nm-export-btns">
-          <button className="nm-btn-exp excel" onClick={exportarCategoriaExcel}>
-            <Download size={15} /> Excel
-          </button>
           <button className="nm-btn-exp pdf" onClick={exportarCategoriaPDF}>
             <Download size={15} /> PDF
           </button>
@@ -761,8 +880,9 @@ export default function GerenteNominaPage() {
                       type={col.type}
                       required={col.required}
                       value={formData[col.key] || ""}
-                      onChange={(e) => setFormData({ ...formData, [col.key]: e.target.value })}
+                      onChange={(e) => handleFormInputChange(col.key, e.target.value)}
                       placeholder={`Ej. Ingrese ${col.label.toLowerCase()}`}
+                      maxLength={col.key === "Cedula" ? 8 : (col.key === "Edad" ? 2 : undefined)}
                     />
                   </div>
                 ))}

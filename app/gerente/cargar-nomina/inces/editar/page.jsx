@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { db } from "../../../../lib/firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { ArrowLeft, Trash2, Save } from "lucide-react";
+import { registrarAuditoria } from "../../../../lib/validationHelpers";
 
 export default function EditarEstudiantes(){
 
@@ -81,11 +82,32 @@ export default function EditarEstudiantes(){
   // 🔥 GUARDAR
   async function guardar(){
 
+    for (let i = 0; i < data.length; i++) {
+      const row = data[i];
+      const cleanCed = String(row["Cedula"] || "").replace(/^V-/i, "").replace(/\D/g, "");
+      if (cleanCed.length < 7 || cleanCed.length > 8) {
+        alert(`❌ En la fila ${i + 1}, la cédula de ${row["Nombres"] || "este registro"} debe tener entre 7 y 8 dígitos.`);
+        return;
+      }
+      const cleanEdad = String(row["Edad"] || "").replace(/\D/g, "");
+      if (cleanEdad.length !== 2) {
+        alert(`❌ En la fila ${i + 1}, la edad de ${row["Nombres"] || "este registro"} debe tener exactamente 2 dígitos.`);
+        return;
+      }
+    }
+
+
     try{
 
       const docRef = doc(db, "nominas", "inces");
 
       await setDoc(docRef, { datos: data });
+
+      // Log Audit Trail
+      await registrarAuditoria(
+        "Modificación de Nómina",
+        `Se guardaron cambios y modificaciones en la nomina de Estudiantes INCES (total registros: ${data.length}).`
+      );
 
       alert("✅ Cambios guardados");
 
@@ -151,11 +173,11 @@ export default function EditarEstudiantes(){
                     </td>
 
                     <td>
-                      <input value={row["Edad"] || ""} onChange={(e)=>handleChange(index,"Edad",e.target.value)}/>
+                      <input value={row["Edad"] || ""} onChange={(e)=>handleChange(index,"Edad",e.target.value)} maxLength={2}/>
                     </td>
 
                     <td>
-                      <input value={row["Cedula"] || ""} onChange={(e)=>handleChange(index,"Cedula",e.target.value)}/>
+                      <input value={row["Cedula"] || ""} onChange={(e)=>handleChange(index,"Cedula",e.target.value)} maxLength={10}/>
                     </td>
 
                     <td>

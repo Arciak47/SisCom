@@ -7,6 +7,8 @@ import * as XLSX from "xlsx";
 import { db } from "../../../../lib/firebase";
 import { doc, setDoc } from "firebase/firestore";
 
+import { checkDuplicateFichasInDB, normalizeHeader, findHeaderRowIndex, formatCategoryName, validarNombreArchivo, registrarAuditoria } from "../../../../lib/validationHelpers";
+
 export default function CargarContratistas() {
 
   const router = useRouter();
@@ -15,6 +17,7 @@ export default function CargarContratistas() {
   const [fileName, setFileName] = useState("");
   const [data, setData] = useState([]);
   const [fileLoaded, setFileLoaded] = useState(false);
+  const [errorFormato, setErrorFormato] = useState("");
 
   // 🔥 HEADERS ACTUALIZADOS (CON EMPRESA)
   const headersOrdenados = [
@@ -24,68 +27,164 @@ export default function CargarContratistas() {
     "Edad",
     "Cedula",
     "Cargo",
-    "Empresa",
-    "Jefe o Supervisor inmediato"
+    "Empresa"
   ];
 
   const limpiar = (txt) =>
     txt?.toString().trim().replace(/\s+/g, " ");
 
-  // 🔥 DETECTAR HEADER
-  function encontrarHeader(rows) {
-    return rows.findIndex(row =>
-      row.some(cell =>
-        typeof cell === "string" &&
-        cell.toLowerCase().includes("nombre")
-      )
-    );
+  const capitalizar = (txt) =>
+    txt?.toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
+
+  function validar(headers) {
+    const normal = headers.map(h => normalizeHeader(h));
+    const requeridos = ["nombres", "apellidos", "cedula"];
+    return requeridos.every(h => normal.includes(h));
   }
 
   // 🔥 LEER EXCEL (CORREGIDO)
   function handleFile(e) {
     const file = e.target.files[0];
-    if (!file) return;
+    if (!validarNombreArchivo(file.name, "contratistas")) {
+      setErrorFormato(`❌ El archivo '${file.name}' no corresponde a la categoría de Contratistas.`);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
 
     setFileName(file.name);
+    setErrorFormato("");
+    setData([]);
+    setFileLoaded(false);
 
     const reader = new FileReader();
 
-    reader.onload = (evt) => {
+    reader.onload = async (evt) => {
+      try {
+        const workbook = XLSX.read(evt.target.result, { type: "binary" });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
 
-      const workbook = XLSX.read(evt.target.result, { type: "binary" });
-      const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+        if (rows.length === 0) {
+          setErrorFormato("❌ Archivo vacío");
+          return;
+        }
 
-      const headerIndex = encontrarHeader(rows);
+        const headerIndex = findHeaderRowIndex(rows);
+        if (headerIndex === -1) {
+          setErrorFormato("❌ No se encontraron las cabeceras válidas en el archivo");
+          return;
+        }
 
-      if (headerIndex === -1) {
-        alert("❌ El archivo no tiene estructura válida");
-        return;
+        const headers = rows[headerIndex];
+        if (!validar(headers)) {
+          setErrorFormato("❌ Formato incorrecto (verifica las columnas de la plantilla)");
+          return;
+        }
+
+        const dataRows = rows.slice(headerIndex + 1);
+        
+        const getHeaderIdx = (name) => {
+          const target = normalizeHeader(name);
+          return headers.findIndex(h => {
+            const normH = normalizeHeader(h);
+            if (target === "numero de ficha" && normH === "ficha") return true;
+            if (target === "empresa" && normH === "empresa contratista") return true;
+            return normH === target;
+          });
+        };
+
+        const fichaIdx = getHeaderIdx("numero de ficha");
+        const nombresIdx = getHeaderIdx("nombres");
+        const apellidosIdx = getHeaderIdx("apellidos");
+        const cedulaIdx = getHeaderIdx("cedula");
+        const edadIdx = getHeaderIdx("edad");
+        const cargoIdx = getHeaderIdx("cargo");
+        const empresaIdx = getHeaderIdx("empresa");
+
+        let internalFichas = new Set();
+        let internalCedulas = new Set();
+        let duplicateFichasInFile = new Set();
+        let duplicateCedulasInFile = new Set();
+        const formatted = [];
+
+        for (let i = 0; i < dataRows.length; i++) {
+          const row = dataRows[i];
+          if (!row || row.length === 0) continue;
+
+          const getValue = (idx) => idx !== -1 && row[idx] !== undefined && row[idx] !== null ? limpiar(row[idx]) : "";
+
+          const rawCedula = getValue(cedulaIdx);
+          const cleanCed = rawCedula.replace(/^V-/i, "").replace(/\D/g, "");
+          const formattedCedula = cleanCed ? `V-${cleanCed}` : "";
+
+          if (!rawCedula && !getValue(nombresIdx)) continue; // Skip empty rows
+
+          let ficha = getValue(fichaIdx);
+          
+          const nombres = capitalizar(getValue(nombresIdx));
+          const apellidos = capitalizar(getValue(apellidosIdx));
+          const edad = getValue(edadIdx) || "-";
+          const cargo = capitalizar(getValue(cargoIdx)) || "-";
+          const empresa = capitalizar(getValue(empresaIdx)) || "-";
+
+          if (ficha && internalFichas.has(ficha)) {
+            const existing = formatted.find(item => item["Numero de ficha"] === ficha);
+            if (existing && existing["Cedula"] === formattedCedula) {
+              // Exact duplicate row (same person & card), skip it silently
+              continue;
+            } else {
+              duplicateFichasInFile.add(ficha);
+            }
+          }
+
+          if (formattedCedula && internalCedulas.has(formattedCedula)) {
+            const existing = formatted.find(item => item["Cedula"] === formattedCedula);
+            if (existing && existing["Numero de ficha"] === ficha) {
+              // Exact duplicate row (same person & card), skip it silently
+              continue;
+            } else {
+              duplicateCedulasInFile.add(formattedCedula);
+            }
+          }
+
+          if (ficha) internalFichas.add(ficha);
+          if (formattedCedula) internalCedulas.add(formattedCedula);
+
+          formatted.push({
+            "Numero de ficha": ficha,
+            "Nombres": nombres,
+            "Apellidos": apellidos,
+            "Edad": edad,
+            "Cedula": formattedCedula,
+            "Cargo": cargo,
+            "Empresa": empresa
+          });
+        }
+
+        if (duplicateFichasInFile.size > 0) {
+          setErrorFormato(`❌ El archivo contiene números de ficha duplicados: ${Array.from(duplicateFichasInFile).join(", ")}`);
+          return;
+        }
+
+        if (duplicateCedulasInFile.size > 0) {
+          setErrorFormato(`❌ El archivo contiene cédulas duplicadas: ${Array.from(duplicateCedulasInFile).join(", ")}`);
+          return;
+        }
+
+        // Validate duplicates against DB (other categories)
+        const dbConflicts = await checkDuplicateFichasInDB(Array.from(internalFichas), "contratistas");
+        if (dbConflicts.length > 0) {
+          const conflictMsgs = dbConflicts.map(c => `Ficha ${c.ficha} (ya existe en ${formatCategoryName(c.category)})`);
+          setErrorFormato(`❌ Conflicto de fichas con la base de datos:\n${conflictMsgs.join("\n")}`);
+          return;
+        }
+
+        setData(formatted);
+        setFileLoaded(true);
+      } catch (err) {
+        console.error(err);
+        setErrorFormato("❌ Error al procesar: " + err.message);
       }
-
-      const dataRows = rows.slice(headerIndex + 1);
-
-      const formatted = dataRows
-        .filter(row => row.length > 0)
-        .map(row => ({
-
-          "Numero de ficha": limpiar(row[1]),
-          "Nombres": limpiar(row[2]) + " " + limpiar(row[3]),
-          "Apellidos": limpiar(row[4]) + " " + limpiar(row[5]),
-          "Edad": limpiar(row[6]),
-          "Cedula": "V-" + limpiar(row[7]),
-          "Cargo": limpiar(row[8]),
-          "Empresa": limpiar(row[9]),
-          "Jefe o Supervisor inmediato": limpiar(row[10]),
-
-        }))
-        .filter(item =>
-          item["Nombres"] &&
-          item["Nombres"].toLowerCase() !== "nombres"
-        );
-
-      setData(formatted);
-      setFileLoaded(true);
     };
 
     reader.readAsBinaryString(file);
@@ -99,11 +198,20 @@ export default function CargarContratistas() {
       return;
     }
 
+    const ok = confirm("⚠️ ¿Está seguro de que desea reemplazar toda la nómina actual de Contratistas? Esta acción no se puede deshacer y borrará los registros anteriores.");
+    if (!ok) return;
+
     try {
 
       await setDoc(doc(db, "nominas", "contratistas"), {
         datos: data
       });
+
+      // Log Audit Trail
+      await registrarAuditoria(
+        "Importación de Nómina",
+        `Se importo y reemplazo la nomina de Contratistas vía Excel (total registros: ${data.length}).`
+      );
 
       alert("✅ Nómina de contratistas guardada");
 
@@ -123,6 +231,7 @@ export default function CargarContratistas() {
     setFileName("");
     setData([]);
     setFileLoaded(false);
+    setErrorFormato("");
 
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -147,6 +256,10 @@ export default function CargarContratistas() {
         <p className="warning">
           ⚠️ Cargar una nueva nómina reemplazará completamente la anterior
         </p>
+
+        {errorFormato && (
+          <p className="error" style={{ color: "red", marginTop: "10px", whiteSpace: "pre-line" }}>{errorFormato}</p>
+        )}
 
         <div
           className="dropZone"

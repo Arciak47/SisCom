@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { db } from "../../../../lib/firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { ArrowLeft } from "lucide-react";
+import { registrarAuditoria } from "../../../../lib/validationHelpers";
 
 export default function ManualVisitantes() {
 
@@ -71,6 +72,12 @@ export default function ManualVisitantes() {
       datos.push(nuevo);
 
       await setDoc(docRef, { datos });
+
+      // Log Audit Trail
+      await registrarAuditoria(
+        "Creación Manual de Trabajador",
+        `Se agrego manualmente al visitante ${nuevo.Nombres} ${nuevo.Apellidos} (Cedula: ${nuevo.Cedula}) a la nomina de Visitantes.`
+      );
 
       alert("✅ Visitante agregado");
 

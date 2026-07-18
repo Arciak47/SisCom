@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { db } from "../../../../lib/firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { ArrowLeft } from "lucide-react";
+import { registrarAuditoria } from "../../../../lib/validationHelpers";
 
 export default function ManualContratistas(){
 
@@ -103,6 +104,12 @@ export default function ManualContratistas(){
       datos.push(nuevo);
 
       await setDoc(ref, { datos });
+
+      // Log Audit Trail
+      await registrarAuditoria(
+        "Creación Manual de Trabajador",
+        `Se agrego manualmente al contratista ${nuevo.Nombres} ${nuevo.Apellidos} (Cedula: ${nuevo.Cedula}) a la nomina de Contratistas.`
+      );
 
       alert("✅ Contratista agregado");
 

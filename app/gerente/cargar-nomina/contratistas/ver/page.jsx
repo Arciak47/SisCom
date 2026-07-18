@@ -20,8 +20,7 @@ export default function VerNominaContratistas() {
     "Edad",
     "Cedula",
     "Cargo",
-    "Empresa",
-    "Jefe o Supervisor inmediato"
+    "Empresa"
   ];
 
   // 🔥 CAPITALIZAR
@@ -51,7 +50,6 @@ export default function VerNominaContratistas() {
             "Apellidos": capitalizar(item["Apellidos"]),
             "Cargo": capitalizar(item["Cargo"]),
             "Empresa": capitalizar(item["Empresa"]),
-            "Jefe o Supervisor inmediato": capitalizar(item["Jefe o Supervisor inmediato"]),
 
             "Cedula": item["Cedula"]
               ? item["Cedula"].startsWith("V-")

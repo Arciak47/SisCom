@@ -4,9 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { db } from "../../lib/firebase";
 import { collection, getDocs, query, orderBy, where } from "firebase/firestore";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
-import * as XLSX from "xlsx";
+import { exportarExcel, exportarPDF } from "../../lib/exportHelpers";
 import { 
   Chart as ChartJS, 
   CategoryScale, 
@@ -177,76 +175,73 @@ export default function AdminEstadisticas() {
   }
 
   // Exports
-  function exportarExcel() {
+  function handleExportarExcel() {
     if (registrosFiltrados.length === 0) {
       alert("No hay registros para exportar");
       return;
     }
 
-    const dataExcel = registrosFiltrados.map((item, index) => ({
-      "#": index + 1,
-      "Fecha y Hora": item.fechaHoraTexto,
-      "Ficha": item.ficha || "-",
-      "Cédula": item.cedula || "-",
-      "Trabajador": `${item.nombres || ""} ${item.apellidos || ""}`,
-      "Cargo": item.cargo || "-",
-      "Departamento": item.departamento || "-",
-      "Nómina": item.tipoNomina || "-",
-      "Comida": item.tipoComida || "-",
-      "Supervisor Registro": item.supervisorRegistro || "-"
+    const columnas = [
+      { key: "index", label: "#" },
+      { key: "fechaHoraTexto", label: "Fecha y Hora" },
+      { key: "ficha", label: "Ficha" },
+      { key: "cedula", label: "Cédula" },
+      { key: "trabajador", label: "Trabajador" },
+      { key: "cargo", label: "Cargo" },
+      { key: "departamento", label: "Departamento" },
+      { key: "tipoNomina", label: "Nómina" },
+      { key: "tipoComida", label: "Comida" },
+      { key: "supervisorRegistro", label: "Supervisor Registro" }
+    ];
+
+    const filas = registrosFiltrados.map((item, index) => ({
+      index: index + 1,
+      fechaHoraTexto: item.fechaHoraTexto,
+      ficha: item.ficha || "-",
+      cedula: item.cedula || "-",
+      trabajador: `${item.nombres || ""} ${item.apellidos || ""}`,
+      cargo: item.cargo || "-",
+      departamento: item.departamento || "-",
+      tipoNomina: item.tipoNomina || "-",
+      tipoComida: item.tipoComida || "-",
+      supervisorRegistro: item.supervisorRegistro || "-"
     }));
 
-    const ws = XLSX.utils.json_to_sheet(dataExcel);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Asistencias");
-    XLSX.writeFile(wb, `Estadisticas_Comedor_Admin_${desdeFecha}_a_${hastaFecha}.xlsx`);
+    exportarExcel(columnas, filas, `Estadisticas_Comedor_Admin_${desdeFecha}_a_${hastaFecha}`);
     alert("✅ Excel exportado correctamente");
   }
 
-  function exportarPDF() {
+  function handleExportarPDF() {
     if (registrosFiltrados.length === 0) {
       alert("No hay registros para exportar");
       return;
     }
 
-    const pdf = new jsPDF({
-      orientation: "landscape",
-      unit: "mm",
-      format: "a4"
-    });
-
-    pdf.setFontSize(16);
-    pdf.text(`Reporte de Uso del Comedor - Administrador SisCOM`, 14, 15);
-    pdf.setFontSize(11);
-    pdf.text(`Rango de Fechas: ${desdeFecha || "Inicio"} al ${hastaFecha || "Fin"}`, 14, 21);
-    pdf.text(`Generado el: ${new Date().toLocaleString()}`, 14, 26);
-    pdf.text(`Total Asistencias: ${registrosFiltrados.length}`, 14, 31);
-
-    const headers = [
-      ["#", "Fecha y Hora", "Ficha", "Cedula", "Trabajador", "Cargo", "Dpto", "Nómina", "Comida"]
+    const columnas = [
+      { key: "index", label: "#" },
+      { key: "fechaHoraTexto", label: "Fecha y Hora" },
+      { key: "ficha", label: "Ficha" },
+      { key: "cedula", label: "Cédula" },
+      { key: "trabajador", label: "Trabajador" },
+      { key: "cargo", label: "Cargo" },
+      { key: "departamento", label: "Dpto" },
+      { key: "tipoNomina", label: "Nómina" },
+      { key: "tipoComida", label: "Comida" }
     ];
 
-    const body = registrosFiltrados.map((item, index) => [
-      index + 1,
-      item.fechaHoraTexto,
-      item.ficha || "-",
-      item.cedula || "-",
-      `${item.nombres || ""} ${item.apellidos || ""}`,
-      item.cargo || "-",
-      item.departamento || "-",
-      item.tipoNomina || "-",
-      item.tipoComida?.toUpperCase() || "-"
-    ]);
+    const filas = registrosFiltrados.map((item, index) => ({
+      index: index + 1,
+      fechaHoraTexto: item.fechaHoraTexto,
+      ficha: item.ficha || "-",
+      cedula: item.cedula || "-",
+      trabajador: `${item.nombres || ""} ${item.apellidos || ""}`,
+      cargo: item.cargo || "-",
+      departamento: item.departamento || "-",
+      tipoNomina: item.tipoNomina || "-",
+      tipoComida: item.tipoComida?.toUpperCase() || "-"
+    }));
 
-    autoTable(pdf, {
-      startY: 36,
-      head: headers,
-      body,
-      styles: { fontSize: 8 },
-      headStyles: { fillColor: [220, 38, 38] } // Rojo Admin/SisCOM
-    });
-
-    pdf.save(`Estadisticas_Comedor_Admin_${desdeFecha}_a_${hastaFecha}.pdf`);
+    exportarPDF(`Reporte de Uso del Comedor - Rango: ${desdeFecha || "Inicio"} al ${hastaFecha || "Fin"}`, columnas, filas, `Estadisticas_Comedor_Admin_${desdeFecha}_a_${hastaFecha}`);
     alert("✅ PDF exportado correctamente");
   }
 
@@ -364,10 +359,7 @@ export default function AdminEstadisticas() {
 
         {/* EXPORTS */}
         <div className="downloadsRow">
-          <button className="downloadBtn excel" onClick={exportarExcel}>
-            <Download size={16} /> Exportar Excel
-          </button>
-          <button className="downloadBtn pdf" onClick={exportarPDF}>
+          <button className="downloadBtn pdf" onClick={handleExportarPDF}>
             <Download size={16} /> Exportar PDF
           </button>
         </div>

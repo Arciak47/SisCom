@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { db } from "../../../../lib/firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { ArrowLeft } from "lucide-react";
+import { registrarAuditoria } from "../../../../lib/validationHelpers";
 
 export default function ManualPasantes() {
 
@@ -82,6 +83,12 @@ export default function ManualPasantes() {
       datos.push(nuevo);
 
       await setDoc(docRef, { datos });
+
+      // Log Audit Trail
+      await registrarAuditoria(
+        "Creación Manual de Trabajador",
+        `Se agrego manualmente al pasante ${nuevo.Nombres} ${nuevo.Apellidos} (Cedula: ${nuevo.Cedula}) a la nomina de Pasantes.`
+      );
 
       alert("✅ Pasante agregado");
 

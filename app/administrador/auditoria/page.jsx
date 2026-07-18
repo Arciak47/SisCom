@@ -186,9 +186,6 @@ export default function AuditoriaPage() {
           <p className="au-sub">Monitorea los accesos, registros y modificaciones de datos del personal.</p>
         </div>
         <div className="au-actions">
-          <button className="au-btn-exp excel" onClick={exportarAuditoriaExcel}>
-            <Download size={15} /> Exportar Excel
-          </button>
           <button className="au-btn-exp pdf" onClick={exportarAuditoriaPDF}>
             <Download size={15} /> Exportar PDF
           </button>
