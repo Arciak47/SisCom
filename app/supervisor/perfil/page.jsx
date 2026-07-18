@@ -17,7 +17,8 @@ import {
 import {
   updatePassword,
   EmailAuthProvider,
-  reauthenticateWithCredential
+  reauthenticateWithCredential,
+  updateEmail
 } from "firebase/auth";
 
 import {
@@ -25,6 +26,8 @@ import {
   Eye,
   EyeOff
 } from "lucide-react";
+
+import { registrarAuditoria } from "../../lib/validationHelpers";
 
 export default function PerfilSupervisor() {
 
@@ -40,6 +43,10 @@ export default function PerfilSupervisor() {
   const [showActual, setShowActual] = useState(false);
   const [showNueva, setShowNueva] = useState(false);
   const [showConfirmar, setShowConfirmar] = useState(false);
+
+  const [nuevoCorreo, setNuevoCorreo] = useState("");
+  const [claveCorreo, setClaveCorreo] = useState("");
+  const [showClaveCorreo, setShowClaveCorreo] = useState(false);
 
   useEffect(() => {
 
@@ -178,6 +185,62 @@ export default function PerfilSupervisor() {
 
     }
 
+  }
+
+  async function cambiarCorreo() {
+    if (!nuevoCorreo || !claveCorreo) {
+      alert("⚠️ Completa todos los campos");
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(nuevoCorreo)) {
+      alert("❌ Ingrese un correo electrónico válido");
+      return;
+    }
+
+    try {
+      const user = auth.currentUser;
+      if (!user) return;
+
+      const credential = EmailAuthProvider.credential(user.email, claveCorreo);
+      await reauthenticateWithCredential(user, credential);
+
+      // Actualizar en Firebase Auth
+      await updateEmail(user, nuevoCorreo);
+
+      // Actualizar en Firestore
+      await updateDoc(doc(db, "usuarios", user.uid), {
+        correo: nuevoCorreo
+      });
+
+      // Auditoría
+      try {
+        await registrarAuditoria(
+          "Actualización de Perfil - Correo",
+          `El usuario actualizó su correo electrónico de ${user.email} a ${nuevoCorreo}`
+        );
+      } catch (auditErr) {
+        console.error("Error al registrar auditoría de correo:", auditErr);
+      }
+
+      alert("✅ Correo electrónico actualizado correctamente");
+
+      setUserData(prev => prev ? { ...prev, correo: nuevoCorreo } : prev);
+      setNuevoCorreo("");
+      setClaveCorreo("");
+    } catch (error) {
+      console.error(error);
+      if (error.code === "auth/invalid-credential") {
+        alert("❌ La contraseña es incorrecta");
+      } else if (error.code === "auth/email-already-in-use") {
+        alert("❌ El correo ingresado ya está en uso por otra cuenta");
+      } else if (error.code === "auth/requires-recent-login") {
+        alert("❌ Por seguridad, inicie sesión nuevamente para realizar este cambio");
+      } else {
+        alert("❌ Error al actualizar el correo electrónico: " + error.message);
+      }
+    }
   }
 
   if (loading) {
@@ -390,6 +453,53 @@ export default function PerfilSupervisor() {
   ACTUALIZAR CONTRASEÑA
 
 </button>
+
+</div>
+
+{/* CAMBIO DE CORREO */}
+<div className="security" style={{ marginTop: "40px", borderTop: "1px solid #eee", paddingTop: "30px" }}>
+
+  <h2>
+    Cambiar Correo Electrónico
+  </h2>
+
+  <p>
+    Actualiza tu dirección de correo electrónico vinculada a tu cuenta
+  </p>
+
+  <div className="inputGroup">
+    <label>NUEVO CORREO ELECTRÓNICO</label>
+    <div className="passwordBox">
+      <input
+        type="email"
+        placeholder="Ingrese el nuevo correo electrónico"
+        value={nuevoCorreo}
+        onChange={(e) => setNuevoCorreo(e.target.value)}
+        style={{ paddingRight: "16px" }}
+      />
+    </div>
+  </div>
+
+  <div className="inputGroup">
+    <label>CONTRASEÑA DE CONFIRMACIÓN</label>
+    <div className="passwordBox">
+      <input
+        type={showClaveCorreo ? "text" : "password"}
+        placeholder="Ingrese su contraseña actual"
+        value={claveCorreo}
+        onChange={(e) => setClaveCorreo(e.target.value)}
+      />
+      <button type="button" onClick={() => setShowClaveCorreo(!showClaveCorreo)}>
+        {showClaveCorreo ? <EyeOff size={18} /> : <Eye size={18} />}
+      </button>
+    </div>
+  </div>
+
+  <button className="saveBtn" onClick={cambiarCorreo}>
+    ACTUALIZAR CORREO
+  </button>
+
+</div>
 
 </div>
 

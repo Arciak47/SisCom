@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { db } from "../../../../lib/firebase";
 import { doc, getDoc, deleteDoc } from "firebase/firestore";
 import { ArrowLeft, Trash2, Pencil, FilePlus, Users } from "lucide-react";
+import { registrarAuditoria } from "../../../../lib/validationHelpers";
 
 export default function VerNominaContratistas() {
 
@@ -85,6 +86,11 @@ export default function VerNominaContratistas() {
 
     try {
       await deleteDoc(doc(db, "nominas", "contratistas"));
+
+      await registrarAuditoria(
+        "Eliminación de Nómina",
+        "Se eliminó por completo la nómina de Contratistas."
+      );
 
       alert("✅ Nómina eliminada");
 
